@@ -1,0 +1,8 @@
+{
+  "version": "V4.12.26",
+  "base_version": "V4.12.24",
+  "package": "FULL_CLEAN",
+  "change": "Product left panel: GWS becomes expandable parent; Tank is child and routes to productGws.",
+  "file_count": 79,
+  "notes": "Deployment/runtime-focused package. Historical READMEs, old deployment notes/manifests, source spreadsheets, and superseded migrations are intentionally excluded."
+}

@@ -1,0 +1,8 @@
+[functions.telegram-webhook]
+verify_jwt = false
+
+[functions.keyai-openai]
+verify_jwt = false
+
+[functions.keysuite-keyai]
+verify_jwt = false
