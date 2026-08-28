@@ -1,0 +1,49 @@
+{
+  "version": "V4.17.07",
+  "source": "V4.17.06 Full Clean",
+  "features": {
+    "gws_role_brand": {
+      "permanent": true,
+      "role_scopes": [
+        "GWS|*",
+        "GWS|TANK"
+      ],
+      "product_access": "Product > GWS > Tank",
+      "persistence_backend": "V4.17.06 generic scope store"
+    },
+    "customer_settings_role_permission": {
+      "key": "customer_settings",
+      "levels": [
+        "none",
+        "view",
+        "full"
+      ],
+      "owner": "fixed full",
+      "view": "page visible read-only",
+      "full": "pricing settings, brand margin, price preference editable",
+      "customer_assigned_brand": "owner-only"
+    }
+  },
+  "new_supabase_sql_required": false,
+  "existing_sql_dependencies": [
+    "V41706_KEYLARGO_ROLE_SCOPE_PERSISTENCE.sql",
+    "V41705_CUSTOMER_PRICE_PREFERENCE_TEXT_ID.sql"
+  ],
+  "checks": {
+    "customer_settings_defaults": true,
+    "customer_settings_role_row": true,
+    "owner_fixed_full": true,
+    "gws_virtual_brand": true,
+    "gws_tank_scope": true,
+    "gws_authority_page": true,
+    "gws_scope_doesnt_unlock_selector": true,
+    "customer_card_permission": true,
+    "customer_page_permission": true,
+    "view_full_company": true,
+    "price_pref_view_only": true,
+    "margin_full_only": true,
+    "assigned_brand_owner_only": true,
+    "gws_left_panel_gated": true,
+    "protected_files_unchanged": true
+  }
+}

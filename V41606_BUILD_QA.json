@@ -1,0 +1,15 @@
+{
+  "quick_version_header": true,
+  "customer_version": true,
+  "intentional_empty_preserved": true,
+  "local_first_preference": true,
+  "hidden_quick_keys_preserved": true,
+  "strict_account_scope_quick": true,
+  "strict_account_scope_customer": true,
+  "dashboard_customer_strict": true,
+  "quick_uses_dashboard_customer": true,
+  "cloud_failure_not_false_success": true,
+  "cache_bumped": true,
+  "bootstrap_bumped": true,
+  "all_pass": true
+}

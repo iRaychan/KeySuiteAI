@@ -1,0 +1,33 @@
+{
+  "version": "V4.17.09",
+  "source": "V4.17.08 Full Clean",
+  "left_panel_rule": {
+    "no_quick_customer": "Role Brand Assigned",
+    "quick_customer_selected": "Role Brand Assigned intersect Customer Brand / Series Price Preference",
+    "zero_price_ticks": "No Brand / Series"
+  },
+  "customer_assigned_brands_setting_removed": true,
+  "price_preference_special_brands": [
+    "Keylargo",
+    "GWS",
+    "M.O.S Motor"
+  ],
+  "curve_preference_remains_separate": true,
+  "new_supabase_sql_required": false,
+  "v41708_table_status": "May remain installed but is ignored by V4.17.09 runtime.",
+  "checks": {
+    "customer_assigned_brand_ui_removed": true,
+    "v41708_scope_runtime_removed": true,
+    "no_customer_role_only": true,
+    "selected_customer_uses_price_pref": true,
+    "product_exact_series_filter": true,
+    "selector_exact_series_filter": true,
+    "zero_price_ticks_no_fallback": true,
+    "price_event_refreshes_left_panel": true,
+    "keylargo_price_pref": true,
+    "gws_price_pref": true,
+    "mos_motor_price_pref": true,
+    "assignment_note": true,
+    "protected_core_unchanged": true
+  }
+}

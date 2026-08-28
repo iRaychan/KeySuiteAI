@@ -1,0 +1,28 @@
+{
+  "version": "V4.17.06",
+  "source": "V4.17.05 Full Clean",
+  "issue": "Key \u2192 Role \u2192 Brand Setting \u2192 Keylargo ticks return to unticked after refresh.",
+  "root_cause": "The legacy Supabase Role scope backend does not reliably persist the virtual KEYLARGO Brand ID.",
+  "fix": {
+    "new_persistent_scope_store": "ks_user_selection_scope_v41706",
+    "virtual_keylargo_keys_persist": true,
+    "existing_normal_brand_scopes_preserved": true,
+    "legacy_normal_scopes_dual_written": true,
+    "owner_only_scope_save": true
+  },
+  "supabase_sql_required": true,
+  "migration": "supabase/migrations/V41706_KEYLARGO_ROLE_SCOPE_PERSISTENCE.sql",
+  "protected_unrelated_files_unchanged": true,
+  "checks": {
+    "new_scope_table": true,
+    "keylargo_scope_preserved": true,
+    "legacy_normal_scope_dual_write": true,
+    "legacy_existing_scope_fallback": true,
+    "owner_only_save": true,
+    "roles_list_new_rpc": true,
+    "roles_save_new_rpc": true,
+    "authority_new_rpc": true,
+    "old_role_save_rpc_removed": true,
+    "protected_files_unchanged": true
+  }
+}

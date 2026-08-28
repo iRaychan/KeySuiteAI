@@ -1,0 +1,74 @@
+{
+  "version": "V4.15.13",
+  "global": true,
+  "CHC": {
+    "applies_to": [
+      "Selection",
+      "Quick Selection",
+      "Product"
+    ],
+    "saved_namespace": "CHC",
+    "defaults": {
+      "2P-6P": "OFF",
+      "Duty Points D1-D6": "ON",
+      "System Curve": "ON",
+      "Operating Point": "ON",
+      "BEP": "ON",
+      "After-orifice Curve": "OFF",
+      "PDF Page 1 Follow Selector Screen": "ON"
+    }
+  },
+  "ES": {
+    "applies_to": [
+      "Selection",
+      "Quick Selection",
+      "Product"
+    ],
+    "saved_namespace": "ES",
+    "defaults": {
+      "Impeller Curves": "Max + Min + Duty Impeller",
+      "2P-6P": "OFF",
+      "Duty Points D1-D6": "ON",
+      "System Curve": "ON",
+      "Operating Point": "ON",
+      "BEP": "ON",
+      "After-orifice Curve": "OFF",
+      "PDF Page 1 Follow Selector Screen": "ON"
+    },
+    "removed_as_display_choices": [
+      "Efficiency",
+      "Power",
+      "NPSH"
+    ],
+    "charts_remain_active": true
+  },
+  "reset_to_default": "restores requested defaults",
+  "sql_required": false,
+  "checks": {
+    "chc_parallel_default_off": true,
+    "chc_duty_default_on": true,
+    "chc_system_default_on": true,
+    "chc_operating_default_on": true,
+    "chc_bep_default_on": true,
+    "chc_orifice_default_off": true,
+    "chc_pdf_follow_default_on": true,
+    "chc_system_visible": true,
+    "chc_system_logic_enabled": true,
+    "chc_product_bep_toggle": true,
+    "chc_product_global_local_key": true,
+    "chc_product_global_account_family": true,
+    "es_impeller_modes": true,
+    "es_duty_default_on": true,
+    "es_system_default_on": true,
+    "es_operating_default_on": true,
+    "es_bep_default_on": true,
+    "es_orifice_default_off": true,
+    "es_pdf_follow_default_on": true,
+    "es_system_visible": true,
+    "es_eff_power_npsh_hidden_not_choices": true,
+    "es_pdf_independent_hidden": true,
+    "es_global_namespace": true,
+    "protected_business_files_unchanged": true,
+    "no_new_sql": true
+  }
+}

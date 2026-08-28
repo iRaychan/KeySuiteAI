@@ -1,0 +1,18 @@
+{
+  "version": "V4.14.12.2",
+  "g2_curve_catalogue_models": 409,
+  "g1_product_models": 409,
+  "checks": {
+    "all_g2_hydraulic_models_initialize": "G2_CURVE_INIT_PASS:409",
+    "g2_product_uses_curve_catalogue": true,
+    "g1_curve_button_removed": true,
+    "g1_direct_quote_payload": true,
+    "g1_direct_does_not_open_curve": true,
+    "blocking_chc_load_alert_removed": true,
+    "g2_modal_waits_for_curve_success": true,
+    "selector_fallback_payload": true,
+    "selector_inline_scripts_checked": 2,
+    "selection_g1_still_removed": true,
+    "no_new_sql_required": true
+  }
+}

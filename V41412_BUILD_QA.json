@@ -1,0 +1,21 @@
+{
+  "version": "V4.14.12",
+  "checks": {
+    "product_nav_chc_g1": true,
+    "product_nav_chc_g2": true,
+    "product_nav_end_suction": true,
+    "product_nav_motor": true,
+    "product_generation_tick_inputs_removed": true,
+    "product_generation_api": true,
+    "company_pricing_g1_tab": true,
+    "company_pricing_g2_tab": true,
+    "category_g1_rule": true,
+    "category_g2_rule": true,
+    "auth_loads_both_generation_rules": true,
+    "quote_price_uses_generation_rule": true,
+    "g1_g2_save_rpc": true,
+    "migration_present": true,
+    "g2_price_table_untouched": true,
+    "g2_curve_data_untouched": true
+  }
+}

@@ -1,0 +1,552 @@
+{
+  "version": "V4.14.09",
+  "g1_price_map_count": 409,
+  "full_clean": {
+    "file_count": 95,
+    "files": [
+      {
+        "path": ".nojekyll",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "CHC_G1_MODEL_MAP.csv",
+        "bytes": 29675,
+        "sha256": "5b88fb059089ef5d55d8481b80dffddcf3cbeaa5813ff489bd7b207a66ac2ec9"
+      },
+      {
+        "path": "CHC_G1_VARIANT_DIMENSIONS.csv",
+        "bytes": 3358,
+        "sha256": "cd41c6f97c3f155f0dbe233618479cc3ca809685717b5d295a8b8857ac053b60"
+      },
+      {
+        "path": "PACKAGE_MANIFEST_V41406_CLEAN.json",
+        "bytes": 14547,
+        "sha256": "b7e15bf68bfa9037054f06f0c9a5cb2aade876299b65da00150cc06e47ebcd60"
+      },
+      {
+        "path": "README.md",
+        "bytes": 1513,
+        "sha256": "da7ba64a4d0817c572731c93ef1f75e54896fc6b029bc4d89b86ba42ddffa913"
+      },
+      {
+        "path": "VERSION.txt",
+        "bytes": 9,
+        "sha256": "637c0f7abf19696c9ea4cdd092a6d1d8d044c6a8034c62cd491913ae89bf8757"
+      },
+      {
+        "path": "app.js",
+        "bytes": 261536,
+        "sha256": "6e8ee35918bb6a5f75791d1fef1a6ad7660c852839475ec730f27cec83182cc3"
+      },
+      {
+        "path": "applications.js",
+        "bytes": 1353,
+        "sha256": "547d500cf455946fc4166b30b08ec9addda30cd597f91f9a8880846f5b61fefc"
+      },
+      {
+        "path": "assembly.js",
+        "bytes": 112474,
+        "sha256": "2a9c937bbdddd08272cb09c58111614db1415dd954ba1cb2c7f818d6fc52928f"
+      },
+      {
+        "path": "auth.js",
+        "bytes": 30414,
+        "sha256": "c66c40331e6e88ed7af9ae21549f892cc481d33a42bbba4166b31305100f890c"
+      },
+      {
+        "path": "baseplate.js",
+        "bytes": 42117,
+        "sha256": "4f3f02bcfba12035d975fa3bac6d3e35ae704bc4b4e5d0ac0fd12ba4fd569dd9"
+      },
+      {
+        "path": "categories.js",
+        "bytes": 22107,
+        "sha256": "901c3bfd38c14dc99608db01557db100f4e65d985c556740ab30d2db50554340"
+      },
+      {
+        "path": "chc-g1-price-map-v41409.js",
+        "bytes": 16168,
+        "sha256": "c9ea5875ea225e81b3b3a7fd2c4f7e43afa1f5605b7fbd43d9c4b0954d8a8195"
+      },
+      {
+        "path": "company-settings.js",
+        "bytes": 12329,
+        "sha256": "2d23082c0a452bd89cc6c34d557e502bbeec6f5454355cdf08a87b4580138f1d"
+      },
+      {
+        "path": "config.example.js",
+        "bytes": 155,
+        "sha256": "e80cf6bbdd613d3ad25fecc8df0b67a28cc4b82c1a6b9a65cc8968e7529f96b1"
+      },
+      {
+        "path": "config.js",
+        "bytes": 405,
+        "sha256": "bc5f1b7a91c207c82e6c466ca7398ab30776311a6b7c890fcc73848fc9c98195"
+      },
+      {
+        "path": "coupling.js",
+        "bytes": 50111,
+        "sha256": "62362621cac38acad532f5fa89977271fb45ffc6ea37361b2fb49f68ebc8aa58"
+      },
+      {
+        "path": "index.html",
+        "bytes": 244694,
+        "sha256": "8952231f1e61c14501d3b8935edf2c2b3be406042ae55d847a7b92c2c95ee093"
+      },
+      {
+        "path": "keyai.js",
+        "bytes": 40214,
+        "sha256": "544c4867b42f9ac984fd834edc56ca48ef7f9b1f21dbc4452bc0174482af5818"
+      },
+      {
+        "path": "keylab.js",
+        "bytes": 21826,
+        "sha256": "54717d3da6b3fe7daf99b07703b9a870e86813482e9d7c91cb10b2b41da65e03"
+      },
+      {
+        "path": "keylargo-logo.png",
+        "bytes": 55342,
+        "sha256": "5ab07e647741bc8bc79faf8237d6b2ce5ba77499ac3b4a75216d17acba8ba1b1"
+      },
+      {
+        "path": "manifest.json",
+        "bytes": 401,
+        "sha256": "ad9dbe4a2304a071deb8fbf86481b26b94eebebc48864232e96ba7f2f8f9f4e6"
+      },
+      {
+        "path": "manifold.js",
+        "bytes": 35647,
+        "sha256": "afdd8aaea308a9b9cde0c80c34095adc3cfd3c441565e7920931bf05640969a9"
+      },
+      {
+        "path": "motor.js",
+        "bytes": 21453,
+        "sha256": "c4528fbed7a968343e40a757f27a874aa1719ec5d35f31eea173b110b547581c"
+      },
+      {
+        "path": "permissions.js",
+        "bytes": 4740,
+        "sha256": "5ace2279126199fbfd9ab32c544a8e5a28e3f846c3f5cc87357b87f502253d6f"
+      },
+      {
+        "path": "pricelist.js",
+        "bytes": 40533,
+        "sha256": "81d9e7c2ef730755972affcad112dd854269f948654968c5451b874dae6974ca"
+      },
+      {
+        "path": "pricing.js",
+        "bytes": 58145,
+        "sha256": "8af93237cdc6e9fcca1f215cd6fa5b047b6dcbc79c1902e53d1f27948c3700dd"
+      },
+      {
+        "path": "product.js",
+        "bytes": 20415,
+        "sha256": "0996e76cff886d1208db97739fca9012efff20a93d40ac32c8432cc22cfebfd3"
+      },
+      {
+        "path": "quotation-references.js",
+        "bytes": 3394,
+        "sha256": "e85006e1341f69f58b5bc1c97dc0456a3cc25a267bf7e50da732c8ca37824aa1"
+      },
+      {
+        "path": "quotation-templates.js",
+        "bytes": 20621,
+        "sha256": "cd275c26b41d4fbcf1730c6b81fcceb73b76c05e798408bf108edf9abd9e1eea"
+      },
+      {
+        "path": "roles.js",
+        "bytes": 30845,
+        "sha256": "3621c618e54a0ed0786196b1faed5116c3364b66de0e9c5b704dc35421866211"
+      },
+      {
+        "path": "selector/apple-touch-icon.png",
+        "bytes": 43142,
+        "sha256": "53d52138fba8d16162a2e319216085f1fc52c37ce1e9c9e151c94ea354eebc4c"
+      },
+      {
+        "path": "selector/bgreich-logo.png",
+        "bytes": 99924,
+        "sha256": "6a514fad6835684387e806cd7e8a428c3d24cf9a6a5afff582ee1f7021a8f5ca"
+      },
+      {
+        "path": "selector/favicon.png",
+        "bytes": 8067,
+        "sha256": "4c58759a278292d72391eb0a5c0390614ca789469fa675c2001eea342d00797e"
+      },
+      {
+        "path": "selector/index.html",
+        "bytes": 3423893,
+        "sha256": "212c09b28832ffec4cdb87f734b601b77ea3fcf9adf91841b32a9547a7bcc6b1"
+      },
+      {
+        "path": "selector/product.html",
+        "bytes": 3529200,
+        "sha256": "6f0b27d5a0a30e7b2ccad6ebc64985ec4a3d8537dd7428a55478c7989d8a8999"
+      },
+      {
+        "path": "selector-es/bgreich-logo.png",
+        "bytes": 99924,
+        "sha256": "6a514fad6835684387e806cd7e8a428c3d24cf9a6a5afff582ee1f7021a8f5ca"
+      },
+      {
+        "path": "selector-es/es-core.js",
+        "bytes": 35328,
+        "sha256": "e9c071744a3efcb66a0047cf25115faccc8f1ccff568399f93360545aa0d4a65"
+      },
+      {
+        "path": "selector-es/es-data.js",
+        "bytes": 111686,
+        "sha256": "4c9f15558f0cc286b37669f3ec20d4c240e2049735ac869e74b22435f8009bc5"
+      },
+      {
+        "path": "selector-es/es-pumpset-dimension.png",
+        "bytes": 203243,
+        "sha256": "ebee34665ea78acdac2973ecb92bed0910bf4db2b89ad3b47859fe435e87c519"
+      },
+      {
+        "path": "selector-es/favicon.svg",
+        "bytes": 240,
+        "sha256": "c25fbbde76537c6d96f90025fe90febcd2942ae04a0c97a530b660051374bdaa"
+      },
+      {
+        "path": "selector-es/index.html",
+        "bytes": 132767,
+        "sha256": "0b1f7f67b6ec2d42aba00c2ff93278a17c03d1f00498e85a4d7b132db887da82"
+      },
+      {
+        "path": "selector-es/motor-data.js",
+        "bytes": 10241,
+        "sha256": "6339937ccee6a98f4e02083636b25d635d1f32a428f2483ac1f7ea152b8f976a"
+      },
+      {
+        "path": "supabase/config.toml",
+        "bytes": 140,
+        "sha256": "644c22bb7460e19bfb61e8cc18d08d16a8a8e73171e84560799f7e45bbf0ddc2"
+      },
+      {
+        "path": "supabase/functions/keyai-openai/index.ts",
+        "bytes": 10736,
+        "sha256": "de1e0c2359c51bbde797c1c9675f7392c9adb07fb4526f773a723e345b5c2b5d"
+      },
+      {
+        "path": "supabase/functions/keysuite-invite-user/index.ts",
+        "bytes": 4152,
+        "sha256": "c78e7c94d1e5f423e05f85b8e52e6ccf5bc8a41f0dd17b95e9902d1acdd9fca3"
+      },
+      {
+        "path": "supabase/functions/keysuite-keyai/index.ts",
+        "bytes": 23072,
+        "sha256": "b1f10210a3b9186193ce3d9d25650c5c4fcead3be66a17c484ce9f198bd10a91"
+      },
+      {
+        "path": "supabase/functions/shared-chc/chc-data.js",
+        "bytes": 118536,
+        "sha256": "97f37e4a44f2aadc62ad488ddefde76976ac2cbe30fc33650955fefd2d6dada5"
+      },
+      {
+        "path": "supabase/functions/shared-chc/chc-selector-core.js",
+        "bytes": 8397,
+        "sha256": "d4f76f5e2c296c03e423e0f8842617ce72e95897cbacba811a829d42c5b184c5"
+      },
+      {
+        "path": "supabase/functions/telegram-webhook/chc-dimensions.ts",
+        "bytes": 48577,
+        "sha256": "270bc43c1f7eacf0206a98546723dbe464b20e33f357109a7b66d17f3892a71c"
+      },
+      {
+        "path": "supabase/functions/telegram-webhook/curve-pdf.ts",
+        "bytes": 29877,
+        "sha256": "97d7d280b5bb11cef37d5e8c94f2670164d0093bf8d613afda485f282d158812"
+      },
+      {
+        "path": "supabase/functions/telegram-webhook/es-core.js",
+        "bytes": 35328,
+        "sha256": "e9c071744a3efcb66a0047cf25115faccc8f1ccff568399f93360545aa0d4a65"
+      },
+      {
+        "path": "supabase/functions/telegram-webhook/es-data.js",
+        "bytes": 111686,
+        "sha256": "4c9f15558f0cc286b37669f3ec20d4c240e2049735ac869e74b22435f8009bc5"
+      },
+      {
+        "path": "supabase/functions/telegram-webhook/index.ts",
+        "bytes": 207371,
+        "sha256": "da1e490cbad503bda781dcf82da208c8a9bf94a9a9aa0c5c67ee96607a580fc2"
+      },
+      {
+        "path": "supabase/functions/telegram-webhook/motor-data.js",
+        "bytes": 10241,
+        "sha256": "6339937ccee6a98f4e02083636b25d635d1f32a428f2483ac1f7ea152b8f976a"
+      },
+      {
+        "path": "supabase/functions/telegram-webhook/report-assets.ts",
+        "bytes": 3108545,
+        "sha256": "c900b4c2f4b11409a11fdc0af4d991f8993bb678999f46b2a43ecd7a57af3c5e"
+      },
+      {
+        "path": "supabase/functions/telegram-webhook/v40205-motor-baseplate-data.js",
+        "bytes": 67425,
+        "sha256": "3e7e86d5a1d7242c691a557121dbf12ed89af8318bf4130dc38f2310ecda9a7a"
+      },
+      {
+        "path": "supabase/functions/telegram-webhook/v40205-motor-baseplate.js",
+        "bytes": 15516,
+        "sha256": "6b9fa40ac0833d042cb2a83e077c6606894fa46b83c0545c73ade741b58e6579"
+      },
+      {
+        "path": "supabase/migrations/V41200_UNIFIED_SUPABASE.sql",
+        "bytes": 4004,
+        "sha256": "e6884225c21589b150b08ffb932b702c6e203947b830804c1dfee6e550594c69"
+      },
+      {
+        "path": "supabase/migrations/V41202_KEYAI_AUTHORITY.sql",
+        "bytes": 8700,
+        "sha256": "1e0c07fffbfe024a5bf1bbd5f96bb81b0aa98f4161b630cc34ad397cb4f84b24"
+      },
+      {
+        "path": "supabase/migrations/V41203_KEYBOT_REPAIR.sql",
+        "bytes": 830,
+        "sha256": "dc83a3dfbc6bf93ee1394d83bdb4f6971f171c99d69795df6cb18fd5618ab1a6"
+      },
+      {
+        "path": "supabase/migrations/V41205_KEYBOT_SENDER_MODE.sql",
+        "bytes": 8924,
+        "sha256": "f046563690b017a1801e40840028fbd497736e5a6242044e7871a4a5c62e8ffe"
+      },
+      {
+        "path": "supabase/migrations/V41216_SELECTOR_DISPLAY_SETTINGS.sql",
+        "bytes": 1703,
+        "sha256": "f79264786f4f7d8e7440d3ce10dfd0e2b7914c6d0c680434e9594b30669b1fb7"
+      },
+      {
+        "path": "supabase/migrations/V41300_KEYBOT_MENU_QUOTATION.sql",
+        "bytes": 8767,
+        "sha256": "285249db683e97c0c8f0520d2a31f82b3c0f46de0e6a29103b4ce40a5c574bec"
+      },
+      {
+        "path": "supabase/migrations/V41306_KEYBOT_CUSTOMER_PRICING.sql",
+        "bytes": 2283,
+        "sha256": "c9316e2dbb829afd68b3794be80928cd9705d076333cfd8a87ff6f71171d30f9"
+      },
+      {
+        "path": "supabase/migrations/V41309_KEYBOT_PERSISTENT_DRAFTS.sql",
+        "bytes": 7555,
+        "sha256": "7efc06e80ecdcec40829dc5c732e63a0a84c45ff61f63b6aaaf53fd66e65a86a"
+      },
+      {
+        "path": "supabase/migrations/V41400_KEYBOT_CONTROLLED_LEARNING.sql",
+        "bytes": 3534,
+        "sha256": "d800bab391d48cbeb2cda84415cf58c1b8af14616c022fc3f6d99351b20d1dee"
+      },
+      {
+        "path": "supabase/migrations/V41402_KEYLAB_INTEGRATION.sql",
+        "bytes": 2432,
+        "sha256": "3f83392f76022f139606d85a86543e7cd78a95e73eb3b9631fbeda0c2bad15fe"
+      },
+      {
+        "path": "supabase/migrations/V41403_KEYLAB_V11.sql",
+        "bytes": 3235,
+        "sha256": "f41597540a2195551cab4f3be3e31ca0e7bbb2bbf439b9b7978de9a8f1ce64e4"
+      },
+      {
+        "path": "supabase/migrations/V41404_CUSTOMER_CLASSIFICATION_KEYLARGO.sql",
+        "bytes": 1182,
+        "sha256": "2d1a50dc1237b2f5e444bd5f30331eca216e6a5a6801287231ec4d253b80b60b"
+      },
+      {
+        "path": "supabase/migrations/V41406_KEYLAB_CLASSIFICATION_RATES.sql",
+        "bytes": 1149,
+        "sha256": "5551e12cd8d4e84ef6ce5011e36fd085c2e2f361087a9f5859df9dad934c693b"
+      },
+      {
+        "path": "supabase/migrations/V41407_CHC_GENERATIONS.sql",
+        "bytes": 15576,
+        "sha256": "d73e1a9a2491927e3cd5a079b4accb41b386b6a96fa358a93180ec46f21f6911"
+      },
+      {
+        "path": "supabase/migrations/V41408_CHC_G1_PRODUCTION.sql",
+        "bytes": 154285,
+        "sha256": "e9f08cbfe4429e78ba269cb7cbbc11f9e8be42c81de0e175b2f5d1b7b7633d63"
+      },
+      {
+        "path": "supabase/migrations/V41409_CHC_G1_PRICELIST.sql",
+        "bytes": 4483,
+        "sha256": "619368a7677c398af81516c0a9a3a17f10152d6825397b08499d1bd07312c24f"
+      },
+      {
+        "path": "supabase/migrations/V41409_VERIFY_CHC_G1_PRICELIST.sql",
+        "bytes": 1454,
+        "sha256": "9952786b1b51e0ce36bd0c4e1daea1ba4a7b8bfb12acac321d62b5e538e54a1d"
+      },
+      {
+        "path": "sw.js",
+        "bytes": 3735,
+        "sha256": "0a59973ec1e13bd98c11876a24e624bc0303e57548f827f4e77dab9cf429af1f"
+      },
+      {
+        "path": "universe.js",
+        "bytes": 50913,
+        "sha256": "eea0254667f61af14f0939116ca79cf776071a04ba9cd0b257063638c584b4de"
+      },
+      {
+        "path": "v388-dashboard-keycore.js",
+        "bytes": 20257,
+        "sha256": "8b7720fea71624610f3c1e6aa2ebd252988e103b5acd509ca24328474294915a"
+      },
+      {
+        "path": "v3944-categories.js",
+        "bytes": 13033,
+        "sha256": "b4fa20348f963f13f36db1d4ef835766dcad28676b25753fdd9695e160a79015"
+      },
+      {
+        "path": "v39441-login-stability.js",
+        "bytes": 5594,
+        "sha256": "6d642f2f3ecd094c500dc355db9b6bab10914ecf26b90f01f26d624a06b37490"
+      },
+      {
+        "path": "v394411-product-curve.js",
+        "bytes": 16556,
+        "sha256": "679f9242a98ce0667ce7e37c64a8137501edd16bab24e8ff2af544d359e077fa"
+      },
+      {
+        "path": "v39445-model-return.js",
+        "bytes": 8586,
+        "sha256": "c2f0096fa9e404503ef77d8d9754ac0f9568ae2c6b7e1dde2611f22625457880"
+      },
+      {
+        "path": "v40001-customer-brand-settings.js",
+        "bytes": 26368,
+        "sha256": "56b467734422831179c558d0baa76932d853b5bfaa19acaad82081a434265f2e"
+      },
+      {
+        "path": "v40001-multibrand.js",
+        "bytes": 96199,
+        "sha256": "f7eb1e7394ec7f15a9d0d69f32c57c840b98390261046d8d71ab7df0605b088f"
+      },
+      {
+        "path": "v40001-product-series-overhaul.js",
+        "bytes": 40403,
+        "sha256": "89137ac049a27400f4d8d299281c6ff6ac55d11a1cefde518d7b1f2ab69ccb7f"
+      },
+      {
+        "path": "v40001-selector-brand.js",
+        "bytes": 34267,
+        "sha256": "cf8f8e556dec9d2e2e3cceb9f3fe79d0c297081d1f9835a77a7b154e8c81b172"
+      },
+      {
+        "path": "v40201-quick-selection.js",
+        "bytes": 28152,
+        "sha256": "707ab58608a82b0d95efac138dfae618ca8ebdb497a9dfda8204b780329c5303"
+      },
+      {
+        "path": "v40205-motor-baseplate-data.js",
+        "bytes": 67425,
+        "sha256": "3e7e86d5a1d7242c691a557121dbf12ed89af8318bf4130dc38f2310ecda9a7a"
+      },
+      {
+        "path": "v40205-motor-baseplate.js",
+        "bytes": 15516,
+        "sha256": "6b9fa40ac0833d042cb2a83e077c6606894fa46b83c0545c73ade741b58e6579"
+      },
+      {
+        "path": "v40407-role-authority.js",
+        "bytes": 9438,
+        "sha256": "3929cfbfce672f008c9ddffae23da49b677e5a8e99c67f4664cef050a87ce507"
+      },
+      {
+        "path": "v41006-bootstrap.js",
+        "bytes": 2645,
+        "sha256": "a30f6f6abd075bbe2879e75cf6d5e0c881c58f000b63fbb0055edf1dd90e36b4"
+      },
+      {
+        "path": "v41006-duty-points.js",
+        "bytes": 1591,
+        "sha256": "dec5f32315f0f0470858d40017c5e09a05d11b298283f75942c82dc95754d6c9"
+      },
+      {
+        "path": "v41006-product-duty.js",
+        "bytes": 6870,
+        "sha256": "1cd2081a975161a254840c565051de0ea6cdb8881d581d4ddfb190f77accf226"
+      },
+      {
+        "path": "v41200-bootstrap.js",
+        "bytes": 3813,
+        "sha256": "bbc9d4af7a2f14029a65bb617dcdd902fafe6dd41dae73f851d6de88a3e72e94"
+      },
+      {
+        "path": "v41223-selection-recovery.js",
+        "bytes": 2843,
+        "sha256": "72796279f0647a3c7557f559e383bf60e4a9847c463cac941823f16e600a29e1"
+      }
+    ]
+  },
+  "upgrade_patch": {
+    "file_count": 9,
+    "files": [
+      {
+        "path": "README_UPGRADE.txt",
+        "bytes": 1166,
+        "sha256": "941aeebe2541c25a1571c5b52e4b3ccf8c27fea009a76db8769773bc739bdadd"
+      },
+      {
+        "path": "VERSION.txt",
+        "bytes": 9,
+        "sha256": "637c0f7abf19696c9ea4cdd092a6d1d8d044c6a8034c62cd491913ae89bf8757"
+      },
+      {
+        "path": "chc-g1-price-map-v41409.js",
+        "bytes": 16168,
+        "sha256": "c9ea5875ea225e81b3b3a7fd2c4f7e43afa1f5605b7fbd43d9c4b0954d8a8195"
+      },
+      {
+        "path": "index.html",
+        "bytes": 244694,
+        "sha256": "8952231f1e61c14501d3b8935edf2c2b3be406042ae55d847a7b92c2c95ee093"
+      },
+      {
+        "path": "manifest.json",
+        "bytes": 401,
+        "sha256": "ad9dbe4a2304a071deb8fbf86481b26b94eebebc48864232e96ba7f2f8f9f4e6"
+      },
+      {
+        "path": "pricelist.js",
+        "bytes": 40533,
+        "sha256": "81d9e7c2ef730755972affcad112dd854269f948654968c5451b874dae6974ca"
+      },
+      {
+        "path": "supabase/migrations/V41409_CHC_G1_PRICELIST.sql",
+        "bytes": 4483,
+        "sha256": "619368a7677c398af81516c0a9a3a17f10152d6825397b08499d1bd07312c24f"
+      },
+      {
+        "path": "supabase/migrations/V41409_VERIFY_CHC_G1_PRICELIST.sql",
+        "bytes": 1454,
+        "sha256": "9952786b1b51e0ce36bd0c4e1daea1ba4a7b8bfb12acac321d62b5e538e54a1d"
+      },
+      {
+        "path": "sw.js",
+        "bytes": 3735,
+        "sha256": "0a59973ec1e13bd98c11876a24e624bc0303e57548f827f4e77dab9cf429af1f"
+      }
+    ]
+  },
+  "checks": {
+    "node": {
+      "pricelist.js": {
+        "returncode": 0,
+        "stderr": ""
+      },
+      "chc-g1-price-map-v41409.js": {
+        "returncode": 0,
+        "stderr": ""
+      }
+    },
+    "index_has_g1_generation_option": true,
+    "index_loads_g1_map_before_pricelist": true,
+    "g1_read_only_guard": true,
+    "g1_selection_disabled_migration": true,
+    "service_worker_cache": true,
+    "g2_data_files_modified": false
+  }
+}

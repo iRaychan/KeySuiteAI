@@ -1,0 +1,51 @@
+{
+  "version": "V4.17.08",
+  "source": "V4.17.07 Full Clean",
+  "changes": {
+    "customer_assigned_brands": {
+      "multi_select": true,
+      "owner_only": true,
+      "left_panel_rule": "Role Brand Assigned \u2229 Customer Assigned Brands",
+      "empty_scope": "No Customer-level Brand restriction",
+      "includes_virtual": [
+        "Keylargo",
+        "GWS"
+      ],
+      "legacy_single_assignment_migrated": true
+    },
+    "price_preference": {
+      "added": [
+        "Keylargo Baseplate",
+        "Keylargo Coupling",
+        "Keylargo KeyPLC Panel",
+        "Keylargo Manifold",
+        "GWS Tank",
+        "M.O.S Motor"
+      ],
+      "commercial_gate_extended": true
+    },
+    "mos": {
+      "built_in_product_family": "Motor"
+    }
+  },
+  "supabase_sql_required": true,
+  "migration": "supabase/migrations/V41708_CUSTOMER_ASSIGNED_BRANDS_MULTI.sql",
+  "protected_hydraulic_price_engine_files_unchanged": true,
+  "checks": {
+    "multi_assignment_table": true,
+    "owner_only_multi_save": true,
+    "legacy_single_assignment_migrated": true,
+    "left_panel_role_customer_intersection": true,
+    "keylargo_customer_intersection": true,
+    "gws_customer_intersection": true,
+    "customer_assignment_multiselect_ui": true,
+    "mos_motor_role_scope": true,
+    "mos_motor_product_builtin": true,
+    "price_pref_keylargo": true,
+    "price_pref_gws": true,
+    "price_pref_motor": true,
+    "price_gate_extended": true,
+    "motor_role_page_scope": true,
+    "protected_files_unchanged": true
+  }
+}

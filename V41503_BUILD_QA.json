@@ -1,0 +1,47 @@
+{
+  "version": "V4.15.03",
+  "purpose": "Remove generic CHC Price Group, migrate old CHC mappings to CHC G2, keep G1 quoteable without hydraulic curve.",
+  "rules": {
+    "CHC_G1": {
+      "price": true,
+      "quote": true,
+      "assembly": true,
+      "curve": false,
+      "hydraulic_selection": false
+    },
+    "CHC_G2": {
+      "price": true,
+      "quote": true,
+      "assembly": true,
+      "curve": true,
+      "hydraulic_selection": true
+    },
+    "generic_CHC": "Removed. Old OEM CHC records migrate to CHC_G2."
+  },
+  "checks": {
+    "legacy_chc_removed_from_ui": true,
+    "legacy_chc_runtime_maps_to_g2": true,
+    "legacy_price_source_maps_to_g2": true,
+    "new_rpc_v41503": true,
+    "g2_dashboard_hydraulic_entry": true,
+    "g1_dashboard_quote_status": true,
+    "g2_quick_selection_entry": true,
+    "g1_quick_quote_status": true,
+    "migration_present": true,
+    "verification_present": true,
+    "product_unchanged": true,
+    "selector_product_unchanged": true,
+    "selector_chc_unchanged": true,
+    "selector_es_unchanged": true,
+    "pricelist_unchanged": true,
+    "pricing_engine_unchanged": true
+  },
+  "protected_file_sha256": {
+    "product.js": "1b1505a9592748826a7102958c1c743181693a20c5a6f72c246d5db7d2aa5fcc",
+    "selector/product.html": "6f0b27d5a0a30e7b2ccad6ebc64985ec4a3d8537dd7428a55478c7989d8a8999",
+    "selector/index.html": "a3a5f45b49bc78605083597901821f329d1659665c9d271c66ffd34f765decc3",
+    "selector-es/index.html": "0b1f7f67b6ec2d42aba00c2ff93278a17c03d1f00498e85a4d7b132db887da82",
+    "pricelist.js": "62f3dfac1f2eb919dc123a139c343a24447314b8713f3c92f86bf54bb16389d9",
+    "pricing.js": "df3616cb4fc9ad3e4e3b326f50bd1de8988c935602e8be685557b2a3777f6158"
+  }
+}

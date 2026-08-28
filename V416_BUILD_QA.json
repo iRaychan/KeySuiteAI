@@ -1,0 +1,9 @@
+{
+  "version": "V4.16",
+  "source": "V4.15.14 Full Clean",
+  "release_type": "Full Clean",
+  "functional_logic_changed": false,
+  "version_cache_bumped": true,
+  "functional_files_unchanged": true,
+  "new_sql_required": false
+}

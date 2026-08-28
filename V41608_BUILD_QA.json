@@ -1,0 +1,13 @@
+{
+  "version": "V4.16.08",
+  "purpose": "Category Compare View CHC G1 / CHC G2 split",
+  "checks": {
+    "compare_has_chc_g1": true,
+    "compare_has_chc_g2": true,
+    "no_generic_chc_tab": true,
+    "generation_rpc": true,
+    "labels_g1_g2": true,
+    "default_g2": true
+  },
+  "sql_required": false
+}

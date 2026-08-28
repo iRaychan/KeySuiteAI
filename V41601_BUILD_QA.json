@@ -1,0 +1,74 @@
+{
+  "version": "V4.16.01",
+  "base": "V4.16 FULL CLEAN",
+  "feature": "Product CHC custom impeller configuration + impeller reduction",
+  "all_passed": true,
+  "checks": [
+    {
+      "name": "CHC 8-200 source has 20 full impellers",
+      "passed": true,
+      "detail": "(20, 0, 0, 20)"
+    },
+    {
+      "name": "CHC 8-200 (-2) maps hydraulically to CHC 8-180",
+      "passed": true,
+      "detail": "CHC 8-180"
+    },
+    {
+      "name": "CHC 200-20 source is 2F",
+      "passed": true,
+      "detail": "(2, 0, 0, 2)"
+    },
+    {
+      "name": "CHC 200-20 with 2M maps to catalog model",
+      "passed": true,
+      "detail": "CHC 200-20-0-2"
+    },
+    {
+      "name": "CHC 200 custom 1F+1M has no fake catalog model",
+      "passed": true,
+      "detail": "None"
+    },
+    {
+      "name": "Impeller editor included",
+      "passed": true,
+      "detail": "Impeller Configuration"
+    },
+    {
+      "name": "Reduction model notation implemented",
+      "passed": true,
+      "detail": "(-${reduction})"
+    },
+    {
+      "name": "Remaining total drives totalImpellers",
+      "passed": true,
+      "detail": "totalImpellers:remaining"
+    },
+    {
+      "name": "Head-weighted efficiency implemented",
+      "passed": true,
+      "detail": "Head-weighted F/S/M efficiency"
+    },
+    {
+      "name": "Payload exports display model",
+      "passed": true,
+      "detail": "quotation_model:displayModel"
+    },
+    {
+      "name": "Payload exports F count",
+      "passed": true,
+      "detail": "impeller_full:mix.full"
+    },
+    {
+      "name": "PDF uses display model",
+      "passed": true,
+      "detail": "const displayModel=best._keysuiteDisplayModel||best.model;"
+    }
+  ],
+  "notes": [
+    "No Supabase SQL required.",
+    "Selection selector logic is unchanged; enhancement is shown only in Product CHC frame.",
+    "Catalog model identity is used when an exact F/S/M combination exists. Reduced models retain the selected base model display with (-n) while using the lower-stage hydraulic equivalent where available.",
+    "Custom non-catalog F/S/M combinations use head-weighted efficiency from the remaining impeller types."
+  ]
+}

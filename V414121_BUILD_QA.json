@@ -1,0 +1,15 @@
+{
+  "version": "V4.14.12.1",
+  "checks": {
+    "selection_filters_g1": true,
+    "selection_labels_g2": true,
+    "fallback_labels_g2": true,
+    "product_model_normalizer": true,
+    "product_model_find_helper": true,
+    "outgoing_model_trimmed": true,
+    "g1_product_still_present": true,
+    "g2_product_still_present": true,
+    "no_sql_required": true,
+    "selector_inline_blocks_checked": 2
+  }
+}

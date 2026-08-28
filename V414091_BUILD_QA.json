@@ -1,0 +1,10 @@
+{
+  "version": "V4.14.09.1",
+  "declared_selectedChcGeneration": true,
+  "runtime_init_test": "RUNTIME_INIT_PASS",
+  "node_syntax": "PASS",
+  "index_pricelist_cache_bust": true,
+  "service_worker_cache": true,
+  "g1_price_map_records": 409,
+  "database_change_required": false
+}

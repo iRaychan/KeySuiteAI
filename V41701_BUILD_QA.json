@@ -1,0 +1,34 @@
+{
+  "version": "V4.17.01",
+  "source": "V4.17 Full Clean",
+  "changes": {
+    "forgot_password": true,
+    "set_new_password": true,
+    "reliable_invitation_create_password": true,
+    "production_auth_redirect": "https://iraychan.github.io/KeySuite/",
+    "role_status": "Account created"
+  },
+  "new_supabase_sql_required": false,
+  "edge_function_redeploy_required": false,
+  "protected_selector_pricing_curve_files_unchanged": true,
+  "checks": {
+    "forgot_password_button": true,
+    "forgot_password_dialog": true,
+    "reset_password_api": true,
+    "password_recovery_event": true,
+    "recovery_marker": true,
+    "invite_marker": true,
+    "live_redirect_config": true,
+    "old_localhost_invite_removed": true,
+    "create_password_dialog": true,
+    "reset_password_dialog": true,
+    "password_update_api": true,
+    "expired_invite_message": true,
+    "expired_reset_message": true,
+    "misleading_login_ready_removed": true,
+    "account_created_status": true,
+    "auth_redirect_exported": true,
+    "existing_account_forgot_password_message": true,
+    "protected_files_unchanged": true
+  }
+}

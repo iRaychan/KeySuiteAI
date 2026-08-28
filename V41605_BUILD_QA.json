@@ -1,0 +1,12 @@
+{
+  "version": "4.16.05",
+  "status": "PASS",
+  "checks": [
+    "Price editor keeps one persistent save listener",
+    "Price save resolves active customer ID at click time",
+    "Curve/Quick Selection editor uses the same stale-listener protection",
+    "Re-rendering a customer does not clear bound flags or accumulate listeners",
+    "Service-worker/cache/build version advanced to 4.16.05",
+    "No Supabase schema change required"
+  ]
+}

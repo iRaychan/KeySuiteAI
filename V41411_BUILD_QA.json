@@ -1,0 +1,15 @@
+{
+  "version": "V4.14.11",
+  "g1_product_models": 409,
+  "g1_g2_both_default_checked": true,
+  "g1_8_1_maps_g2_8_10": true,
+  "g1_8_10_maps_g2_8_100": true,
+  "g1_32_3_2_maps_g2_32_30_2": true,
+  "g1_product_generation_payload": true,
+  "g1_dimension_override_sent": true,
+  "g1_quote_uses_generation": true,
+  "completion_zero_not_counted_main": true,
+  "completion_zero_not_counted_manifold": true,
+  "service_worker_cache": true,
+  "selector_inline_scripts_checked": 2
+}

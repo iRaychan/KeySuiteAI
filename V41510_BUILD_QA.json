@@ -1,0 +1,11 @@
+{
+  "version": "V4.15.10",
+  "root_cause": "Direct CHC quotation route created B.G.Reich/CHC source row without handing it to selected Selling Brand runtime.",
+  "fix": {
+    "pricing": "still performed first with source CHC identity",
+    "handoff": "finished row force-stamped with current selected Selling Brand",
+    "OEM": "Brand Type OEM is therefore unbranded and CHC is converted to mapped Selling Sub Series such as VMS"
+  },
+  "protected_files_unchanged": true,
+  "sql_required": false
+}

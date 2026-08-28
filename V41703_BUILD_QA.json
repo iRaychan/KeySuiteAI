@@ -1,0 +1,29 @@
+{
+  "version": "V4.17.03",
+  "source": "V4.17.02 Full Clean",
+  "issue": "Owner sees Customer OEM Price preference but Admin with OEM role assignment does not.",
+  "fix": {
+    "customer_price_preference_source": "Supabase central customer preference",
+    "localstorage_authoritative_fallback_removed": true,
+    "role_authority_reload_race_fixed": true,
+    "same_company_admin_read_rpc_added": true,
+    "role_brand_scope_remains_maximum_authority": true
+  },
+  "expected_rule": "Role Brand Assigned AND Customer Price Preference",
+  "supabase_sql_required": true,
+  "migration": "supabase/migrations/V41703_CUSTOMER_PRICE_PREFERENCE_READ.sql",
+  "protected_pricing_selector_product_files_unchanged": true,
+  "checks": {
+    "central_v41703_rpc": true,
+    "legacy_rpc_fallback": true,
+    "localstorage_not_authoritative": true,
+    "database_first_save": true,
+    "authority_change_force_reload": true,
+    "read_error_is_unknown": true,
+    "clear_supabase_error": true,
+    "same_company_sql_check": true,
+    "security_definer": true,
+    "authenticated_grant": true,
+    "protected_files_unchanged": true
+  }
+}

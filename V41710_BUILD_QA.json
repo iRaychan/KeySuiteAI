@@ -1,0 +1,28 @@
+{
+  "version": "V4.17.10",
+  "source": "V4.17.09 Full Clean",
+  "fixes": {
+    "price_preference_save": "new generic Supabase store / RPC",
+    "legacy_preferences": "lazy imported from v3963 getter on first V41710 read",
+    "brand_checkbox": "tick/untick all visible Role-authorized series; partial = indeterminate"
+  },
+  "required_sql": "V41710_GENERIC_CUSTOMER_PRICE_PREFERENCE.sql",
+  "left_panel_rule": {
+    "no_customer": "Role Brand Assigned",
+    "customer_selected": "Role Brand Assigned intersect Customer Brand / Series Price Preference"
+  },
+  "checks": {
+    "generic_read_rpc": true,
+    "generic_save_rpc": true,
+    "old_save_rpc_removed": true,
+    "brand_master_checkbox": true,
+    "brand_selects_all_visible_series": true,
+    "brand_partial_indeterminate": true,
+    "hidden_role_series_preserved": true,
+    "keylargo_price_entries_preserved": true,
+    "gws_price_entry_preserved": true,
+    "mos_motor_preserved": true,
+    "left_panel_price_rule_preserved": true,
+    "protected_core_unchanged": true
+  }
+}

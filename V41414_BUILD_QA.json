@@ -1,0 +1,21 @@
+{
+  "version": "V4.14.14",
+  "known_good_g2_source": "V4.14.10",
+  "selector_sha256": "6f0b27d5a0a30e7b2ccad6ebc64985ec4a3d8537dd7428a55478c7989d8a8999",
+  "selector_inline_script_blocks_checked": 2,
+  "checks": {
+    "selector_product_exact_v41410": true,
+    "g2_ensure_frame_exact_v41410": true,
+    "g2_send_exact_v41410": true,
+    "g2_render_models_exact_v41410": true,
+    "g2_specific_model_curve": true,
+    "g1_no_curve": true,
+    "g1_direct_quote_assembly": true,
+    "experimental_g2_catalogue_not_loaded": true,
+    "oem_helper_removed": true,
+    "oem_generation_helpers_removed": true,
+    "oem_alignment_css": true,
+    "selector_inline_scripts_checked": true,
+    "no_new_sql": true
+  }
+}

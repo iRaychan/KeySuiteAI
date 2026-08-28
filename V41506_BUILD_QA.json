@@ -1,0 +1,27 @@
+{
+  "version": "V4.15.06",
+  "preference_hierarchy": "Role authorization -> Key Customer Price Preference -> Left Customer Quick Selection Preference",
+  "rules": {
+    "key_customer": "Price only",
+    "left_customer": "Quick Selection only",
+    "price_off": "Brand/Series disappears from Left Customer preference and cannot be priced/quoted/selected",
+    "price_on": "Brand/Series becomes available in Left Customer preference",
+    "selection_memory": "Preserved while Price is OFF and restored when Price is enabled again",
+    "CHC_G1": "Can be Price-enabled but never appears in Quick Selection because it has no curve"
+  },
+  "checks": {
+    "key_price_only_title": true,
+    "key_price_only_columns": true,
+    "left_customer_selection_title": true,
+    "left_customer_selection_only": true,
+    "selection_filtered_by_price": true,
+    "price_off_hidden_from_left_customer": true,
+    "selection_memory_preserved": true,
+    "price_save_preserves_selection": true,
+    "selection_save_preserves_price": true,
+    "dashboard_pref_hidden": true,
+    "quick_selection_uses_customer_pref": true,
+    "no_new_sql": true,
+    "protected_files_unchanged": true
+  }
+}

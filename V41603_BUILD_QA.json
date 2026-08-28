@@ -1,0 +1,10 @@
+{
+  "version": "4.16.03",
+  "checks": [
+    {"name":"legacy_dashboard_hide_removed","passed":true,"detail":"customer-brand module no longer sets #ks39442Pref display:none"},
+    {"name":"quick_selection_owner","passed":true,"detail":"v40201-quick-selection.js remains sole Dashboard Brand/Series preference renderer"},
+    {"name":"authority_preserved","passed":true,"detail":"use_quick_selection and Owner/Role Brand-Series scope checks remain active"},
+    {"name":"customer_price_separate","passed":true,"detail":"customer Brand/Series price permission remains under Key > Customer"},
+    {"name":"syntax","passed":true,"detail":"node --check passed for changed runtime files"}
+  ]
+}

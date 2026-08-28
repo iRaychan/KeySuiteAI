@@ -1,0 +1,50 @@
+{
+  "version": "V4.15.04",
+  "features": {
+    "customer_terms_days": {
+      "0": "Cash before delivery",
+      "positive": "<n> days"
+    },
+    "customer_brand_series_preference": {
+      "hierarchy": "Role authorization -> Price -> Selection",
+      "price_off": "Price/Quote unavailable + Selection/Curve unavailable",
+      "price_on_selection_off": "Price/Quote available; Selection/Curve hidden",
+      "price_on_selection_on": "both available",
+      "CHC_G1": "Price/Quote available when enabled; no Curve/Selection"
+    },
+    "quotation_brand": {
+      "named": "Selected Selling Brand",
+      "OEM": "Unbranded"
+    }
+  },
+  "checks": {
+    "terms_days_label": true,
+    "terms_numeric_input": true,
+    "terms_zero_cash_before_delivery": true,
+    "terms_saved_numeric": true,
+    "terms_quotation_formatted": true,
+    "price_selection_two_columns": true,
+    "price_keys_persisted": true,
+    "g1_price_no_selection": true,
+    "g2_price_selection": true,
+    "quick_filters_price_off": true,
+    "selector_tree_filters_customer_preference": true,
+    "quotation_price_gate": true,
+    "selling_brand_named": true,
+    "oem_unbranded": true,
+    "exact_price_group_mapping_in_quote": true,
+    "no_new_sql": true,
+    "product_unchanged": true,
+    "selector_product_unchanged": true,
+    "selector_chc_unchanged": true,
+    "selector_es_unchanged": true,
+    "pricelist_unchanged": true
+  },
+  "protected_file_sha256": {
+    "product.js": "1b1505a9592748826a7102958c1c743181693a20c5a6f72c246d5db7d2aa5fcc",
+    "selector/product.html": "6f0b27d5a0a30e7b2ccad6ebc64985ec4a3d8537dd7428a55478c7989d8a8999",
+    "selector/index.html": "a3a5f45b49bc78605083597901821f329d1659665c9d271c66ffd34f765decc3",
+    "selector-es/index.html": "0b1f7f67b6ec2d42aba00c2ff93278a17c03d1f00498e85a4d7b132db887da82",
+    "pricelist.js": "62f3dfac1f2eb919dc123a139c343a24447314b8713f3c92f86bf54bb16389d9"
+  }
+}

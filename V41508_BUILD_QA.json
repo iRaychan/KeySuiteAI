@@ -1,0 +1,20 @@
+{
+  "version": "V4.15.08",
+  "purpose": "Category Pricing Rule UI containment cleanup",
+  "changes": {
+    "product_tabs": "4 columns desktop, 2 tablet, 1 narrow mobile",
+    "button_text": "wraps inside each button and never exceeds the box",
+    "category_select_row": "responsive; Save Category stays within card",
+    "assembly_quote_tabs": "contained within card"
+  },
+  "checks": {
+    "product_tabs_grid": true,
+    "buttons_contained": true,
+    "responsive_2_column": true,
+    "responsive_1_column": true,
+    "category_row_responsive": true,
+    "factor_tabs_contained": true,
+    "business_logic_unchanged": true,
+    "no_new_sql": true
+  }
+}

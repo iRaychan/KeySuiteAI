@@ -1,0 +1,22 @@
+{
+  "version": "V4.15.07",
+  "changes": {
+    "price_preference_default": "All OFF for new / unset customer preference",
+    "curve_preference_default": "All OFF for new / unset customer preference",
+    "left_customer_title": "Brand / Series Curve Preference",
+    "CHC_G1_motor": "IE2 fixed in G1 direct Product Quote / Assembly payload"
+  },
+  "existing_saved_preferences": "Existing explicitly saved ticks remain saved. Only new/unset preference starts OFF.",
+  "checks": {
+    "price_default_off": true,
+    "curve_default_off": true,
+    "opt_in_comment": true,
+    "curve_preference_title": true,
+    "curve_save_button": true,
+    "g1_motor_ie2": true,
+    "g1_ie3_direct_removed": true,
+    "g1_help_ie2": true,
+    "protected_files_unchanged": true,
+    "no_new_sql": true
+  }
+}

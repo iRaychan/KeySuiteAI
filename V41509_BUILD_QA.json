@@ -1,0 +1,15 @@
+{
+  "version": "V4.15.09",
+  "product_actions": {
+    "with_curve": "Curve | Assembly | Quote unchanged",
+    "without_curve": "blank | Assembly | Quote aligned from the right"
+  },
+  "oem_quote": {
+    "rule": "Brand Type = OEM => unbranded",
+    "brand_prefix": "B.G.Reich/OEM suppressed",
+    "model": "mapped Selling Sub Series used, e.g. VMS",
+    "mapping": "best Base Sub Series prefix match"
+  },
+  "protected_files_unchanged": true,
+  "sql_required": false
+}

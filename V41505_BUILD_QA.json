@@ -1,0 +1,11 @@
+{
+  "version": "V4.15.05",
+  "layout": "2 cards per row desktop; 1 per row <=900px",
+  "checks": {
+    "contained_cards": true,
+    "fixed_columns": true,
+    "responsive": true,
+    "short_na": true,
+    "protected_logic_unchanged": true
+  }
+}

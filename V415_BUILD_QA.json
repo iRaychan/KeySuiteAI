@@ -1,0 +1,25 @@
+{
+  "version": "V4.15",
+  "purpose": "Restore all active OEM Brands in Customer Brand assignment and recognize CHC_G2 Product Groups in Customer Brand/Series settings.",
+  "checks": {
+    "all_active_oem_customer_assignment": true,
+    "customer_assignment_not_mapping_dependent": true,
+    "customer_assignment_uses_customer_brand_options": true,
+    "customer_margin_all_active_brands": true,
+    "oem_g2_customer_settings_recognized": true,
+    "g1_not_hydraulic_customer_selection": true,
+    "quick_selection_oem_g2_recognized": true,
+    "quick_selection_g1_still_excluded": true,
+    "bootstrap_cache_bumped": true,
+    "service_worker_cache_bumped": true,
+    "product_js_unchanged": true,
+    "selector_product_unchanged": true,
+    "selector_selection_unchanged": true,
+    "no_new_sql": true
+  },
+  "protected_files": {
+    "product.js": "1b1505a9592748826a7102958c1c743181693a20c5a6f72c246d5db7d2aa5fcc",
+    "selector/product.html": "6f0b27d5a0a30e7b2ccad6ebc64985ec4a3d8537dd7428a55478c7989d8a8999",
+    "selector/index.html": "a3a5f45b49bc78605083597901821f329d1659665c9d271c66ffd34f765decc3"
+  }
+}

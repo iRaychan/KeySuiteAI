@@ -1,0 +1,12 @@
+{
+  "version_header": true,
+  "zero_margin_button_css": true,
+  "zero_margin_active_css": true,
+  "zero_margin_row_css": true,
+  "zero_margin_logic": true,
+  "live_margin_updates_indicator": true,
+  "category_cache_bumped": true,
+  "cache_bumped": true,
+  "bootstrap_bumped": true,
+  "all_pass": true
+}

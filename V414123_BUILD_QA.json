@@ -1,0 +1,12 @@
+{
+  "version": "V4.14.12.3",
+  "checks": {
+    "g2_exact_curve_catalogue_409": true,
+    "g2_curve_dialog_opens_on_click": true,
+    "iframe_load_fallback_added": true,
+    "iframe_attr_check_hardened": true,
+    "g1_curve_button_still_removed": true,
+    "all_g2_models_initialize": true,
+    "no_new_sql": true
+  }
+}

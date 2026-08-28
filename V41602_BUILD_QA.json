@@ -1,0 +1,84 @@
+{
+  "version": "V4.16.02",
+  "base": "V4.16.01 FULL CLEAN",
+  "feature": "Collapsible Product CHC impeller editor + user-selectable authorized Quick Selection Brand / Series",
+  "all_passed": true,
+  "checks": [
+    {
+      "name": "Impeller Configuration uses collapsible details",
+      "passed": true,
+      "detail": "details element"
+    },
+    {
+      "name": "Impeller Configuration defaults collapsed for each new Product model",
+      "passed": true,
+      "detail": "state reset to false"
+    },
+    {
+      "name": "Impeller editor preserves open state while F/S/M is edited",
+      "passed": true,
+      "detail": "toggle state retained across renderSelected"
+    },
+    {
+      "name": "Reduce Impeller remains available",
+      "passed": true,
+      "detail": "existing V4.16.01 control preserved"
+    },
+    {
+      "name": "F/S/M controls remain available",
+      "passed": true,
+      "detail": "F / S / M"
+    },
+    {
+      "name": "Dashboard Brand / Series settings is no longer forcibly hidden",
+      "passed": true,
+      "detail": "hidden CSS removed"
+    },
+    {
+      "name": "Dashboard Brand / Series settings defaults collapsed",
+      "passed": true,
+      "detail": "details starts closed"
+    },
+    {
+      "name": "User sees only authority-filtered entries when Brand/Series is locked",
+      "passed": true,
+      "detail": "authority filter"
+    },
+    {
+      "name": "Owner role assignment remains source of allowed Brand/Series scope",
+      "passed": true,
+      "detail": "existing role scope preserved"
+    },
+    {
+      "name": "User can Select All Allowed / Clear / Save Preference",
+      "passed": true,
+      "detail": "dashboard preference actions"
+    },
+    {
+      "name": "Quick Selection permission still gates dashboard feature",
+      "passed": true,
+      "detail": "use_quick_selection authority preserved"
+    },
+    {
+      "name": "Restricted user cannot open unauthorized series via Quick Selection",
+      "passed": true,
+      "detail": "selection list derives from allowed entries"
+    },
+    {
+      "name": "Product frame cache buster updated",
+      "passed": true,
+      "detail": "41602"
+    },
+    {
+      "name": "Runtime version bumped",
+      "passed": true,
+      "detail": "V4.16.02"
+    }
+  ],
+  "notes": [
+    "No new Supabase SQL required.",
+    "Role Brand / Series assignment remains Owner-controlled and is the maximum scope a restricted user can access.",
+    "Dashboard preference lets each user select a subset of their allowed Brand / Series for Quick Selection.",
+    "Selection hydraulic logic and V4.16.01 impeller calculations are unchanged."
+  ]
+}

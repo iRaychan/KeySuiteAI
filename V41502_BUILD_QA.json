@@ -1,0 +1,36 @@
+{
+  "version": "V4.15.02",
+  "purpose": "Rename OEM Series Product Group to Price Group and make CHC G1/G2 the active CHC price sources.",
+  "rules": {
+    "price_group": "Commercial price source used by OEM mapping.",
+    "chc_g1": "Independent CHC G1 Price List / pricing source.",
+    "chc_g2": "Independent CHC G2 Price List / pricing source.",
+    "generic_chc": "Legacy-only. Existing rows remain visible as CHC (Legacy); it is not offered for new mappings.",
+    "internal_compatibility": "Existing database/internal product_group fields remain unchanged for compatibility."
+  },
+  "checks": {
+    "ui_column_renamed_price_group": true,
+    "sort_label_renamed_price_group": true,
+    "new_price_group_options": true,
+    "chc_g1_option": true,
+    "chc_g2_option": true,
+    "generic_chc_not_new_option": true,
+    "legacy_chc_preserved": true,
+    "new_row_requires_choice": true,
+    "legacy_chc_new_save_blocked": true,
+    "save_message_price_group": true,
+    "product_unchanged": true,
+    "selector_product_unchanged": true,
+    "selector_chc_unchanged": true,
+    "selector_es_unchanged": true,
+    "pricelist_unchanged": true,
+    "no_new_sql": true
+  },
+  "protected_file_sha256": {
+    "product.js": "1b1505a9592748826a7102958c1c743181693a20c5a6f72c246d5db7d2aa5fcc",
+    "selector/product.html": "6f0b27d5a0a30e7b2ccad6ebc64985ec4a3d8537dd7428a55478c7989d8a8999",
+    "selector/index.html": "a3a5f45b49bc78605083597901821f329d1659665c9d271c66ffd34f765decc3",
+    "selector-es/index.html": "0b1f7f67b6ec2d42aba00c2ff93278a17c03d1f00498e85a4d7b132db887da82",
+    "pricelist.js": "62f3dfac1f2eb919dc123a139c343a24447314b8713f3c92f86bf54bb16389d9"
+  }
+}

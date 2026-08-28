@@ -1,0 +1,32 @@
+{
+  "version": "V4.17.05",
+  "source": "V4.17.04 Full Clean",
+  "changes": {
+    "customer_id_rpc": "TEXT customer ID support (COID00001)",
+    "keylargo_role": "Permanent virtual Keylargo Role Brand Assigned option",
+    "role_brand_authority": "Role Brand Assigned is maximum authority for every non-Owner",
+    "left_panel_filter": "Role Brand Assigned intersect Customer Assigned Brand; Quick/Curve preferences are not used",
+    "g1_model_display": "Visible G1 badge removed from all G1 Product model rows",
+    "customer_clear_x": "Confirmation deletes current working quotation items; Sealed quotation blocked"
+  },
+  "supabase_sql_required": true,
+  "migration": "supabase/migrations/V41705_CUSTOMER_PRICE_PREFERENCE_TEXT_ID.sql",
+  "protected_pricing_curve_files_unchanged": true,
+  "checks": {
+    "customer_text_rpc": true,
+    "bad_uuid_wrapper_dropped": true,
+    "coid_text_lookup": true,
+    "permanent_keylargo_role": true,
+    "keylargo_no_brand_row_dependency": true,
+    "role_scope_always_max": true,
+    "keylargo_scope_id": true,
+    "left_panel_customer_assignment": true,
+    "left_panel_not_curve_pref": true,
+    "dashboard_customer_event": true,
+    "customer_assignment_event": true,
+    "g1_badge_removed": true,
+    "clear_customer_confirm": true,
+    "sealed_clear_block": true,
+    "protected_files_unchanged": true
+  }
+}

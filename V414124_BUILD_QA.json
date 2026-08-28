@@ -1,0 +1,17 @@
+{
+  "version": "V4.14.12.4",
+  "g2_models": 409,
+  "selector_inline_script_blocks_checked": 2,
+  "checks": {
+    "direct_url_curve_loader": true,
+    "curve_model_in_url": true,
+    "curve_click_no_sendEntry_view": true,
+    "selector_auto_init": true,
+    "selector_reads_query_model": true,
+    "g2_catalogue_409": true,
+    "g2_catalogue_matches_selector_db": true,
+    "g1_curve_still_removed": true,
+    "selector_inline_scripts_checked": true,
+    "no_new_sql": true
+  }
+}

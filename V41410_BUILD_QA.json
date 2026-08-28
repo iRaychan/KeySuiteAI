@@ -1,0 +1,16 @@
+{
+  "version": "V4.14.10",
+  "g1_price_workbook_rows": 374,
+  "g1_initial_nonzero_pump_prices_in_source_workbook": 0,
+  "checks": {
+    "g1_table_loaded_by_auth": true,
+    "g1_own_save_rpc": true,
+    "old_g2_price_source_text_removed": true,
+    "g1_price_fallback_to_g2_removed": true,
+    "generation_aware_pricing": true,
+    "g2_save_rpc_preserved": true,
+    "g1_selection_disabled_sql_untouched": true,
+    "cache_bumped": true,
+    "index_copy_corrected": true
+  }
+}

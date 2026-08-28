@@ -1,0 +1,35 @@
+{
+  "version": "V4.15.12",
+  "fix": "Left Panel > Product > B.G.Reich > CHC G2 > Curve now has Save Display Settings",
+  "saved_controls": [
+    "2P",
+    "3P",
+    "4P",
+    "5P",
+    "6P",
+    "Duty points D1-D6",
+    "System curve",
+    "After-orifice curve",
+    "Operating point"
+  ],
+  "storage": {
+    "local": "ks_selector_display_chc_product",
+    "account_family": "CHC_PRODUCT"
+  },
+  "selection_chc": "unchanged and kept separate",
+  "sql_required": true,
+  "checks": {
+    "save_button": true,
+    "reset_button": true,
+    "status": true,
+    "separate_local_storage": true,
+    "separate_account_family": true,
+    "save_bound": true,
+    "reset_bound": true,
+    "auto_load": true,
+    "saved_parallel_2_6": true,
+    "saved_display_toggles": true,
+    "sql_extended": true,
+    "selection_chc_unchanged": true
+  }
+}

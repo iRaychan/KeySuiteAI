@@ -1,0 +1,24 @@
+{
+  "version": "V4.15.11",
+  "rule": {
+    "0 selected": "Price unavailable",
+    "1 selected": "Use that currency only",
+    "2 selected": "Highest MYR-equivalent of selected two",
+    "3 selected": "Highest MYR-equivalent of all three",
+    "blank/0 source": "Ignored"
+  },
+  "scope": "Per Category + Product Rule",
+  "sql_required": true,
+  "checks": {
+    "three_ticks": true,
+    "zero_default": true,
+    "zero_unavailable": true,
+    "one_currency": true,
+    "highest_selected": true,
+    "myr_comparison": true,
+    "saved_per_rule": true,
+    "compare_preserves": true,
+    "owner_rpc": true,
+    "protected": true
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "version": "V4.17",
+  "source": "KeySuite_V4.16.08_FULL_CLEAN_GitHub.zip",
+  "release_type": "Full Clean",
+  "functional_logic_changed_in_v417_release_step": false,
+  "version_cache_bumped": true,
+  "functional_files_unchanged": true,
+  "new_supabase_sql_required": false
+}

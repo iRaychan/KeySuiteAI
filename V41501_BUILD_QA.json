@@ -1,0 +1,36 @@
+{
+  "version": "V4.15.01",
+  "purpose": "Dynamic active Brand master + Role Brand authorization across Role, Customer assignment, and Dashboard Brand / Series Settings.",
+  "rules": {
+    "role_brand_assigned": "All active Brands from Brand Management; future OEM Brands appear automatically as choices.",
+    "customer_brand_assigned": "All active Brands from Brand Management; preserved from V4.15.",
+    "dashboard_brand_series_settings": "Shows active Brands allowed by current Role authorization. Unrestricted roles see all active Brands.",
+    "future_oem_brand": "Appears automatically in Role/Customer lists; restricted users need Owner authorization before Dashboard/Product/Selection access.",
+    "inactive_brand": "Not offered for new active-brand settings; historical stored identities remain outside this UI change."
+  },
+  "checks": {
+    "role_all_active_brands": true,
+    "role_brand_without_series_visible": true,
+    "role_future_series_wildcard": true,
+    "role_chc_g1_g2_family_normalized": true,
+    "authority_chc_generations_normalized": true,
+    "authority_brand_level_helper": true,
+    "dashboard_role_authorized_brands": true,
+    "dashboard_no_series_brand_still_shown": true,
+    "dashboard_role_authorized_label": true,
+    "quick_settings_role_authorized_brands": true,
+    "customer_brand_assignment_v415_preserved": true,
+    "role_ui_label": true,
+    "product_js_unchanged": true,
+    "selector_product_unchanged": true,
+    "selector_chc_unchanged": true,
+    "selector_es_unchanged": true,
+    "no_new_sql": true
+  },
+  "protected_file_sha256": {
+    "product.js": "1b1505a9592748826a7102958c1c743181693a20c5a6f72c246d5db7d2aa5fcc",
+    "selector/product.html": "6f0b27d5a0a30e7b2ccad6ebc64985ec4a3d8537dd7428a55478c7989d8a8999",
+    "selector/index.html": "a3a5f45b49bc78605083597901821f329d1659665c9d271c66ffd34f765decc3",
+    "selector-es/index.html": "0b1f7f67b6ec2d42aba00c2ff93278a17c03d1f00498e85a4d7b132db887da82"
+  }
+}

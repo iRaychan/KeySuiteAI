@@ -1,0 +1,20 @@
+{
+  "version": "V4.14.13",
+  "checks": {
+    "product_group_chc": true,
+    "product_group_g1": true,
+    "product_group_g2": true,
+    "base_family_mapping": true,
+    "generation_mapping": true,
+    "price_group_stamped": true,
+    "brand_product_group_stamped": true,
+    "new_save_rpc": true,
+    "migration_present": true,
+    "product_js_unchanged_from_base": true,
+    "selector_product_unchanged_from_base": true
+  },
+  "protected_files_not_modified": [
+    "product.js",
+    "selector/product.html"
+  ]
+}

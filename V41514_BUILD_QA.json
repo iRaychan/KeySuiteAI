@@ -1,0 +1,28 @@
+{
+  "version": "V4.15.14",
+  "feature": "Left Panel visible series names follow saved Brand Series.",
+  "applies_to": [
+    "Selection \u2192 Brand \u2192 Brand Series",
+    "Product \u2192 Brand \u2192 Brand Series",
+    "B.G.Reich direct Product group"
+  ],
+  "examples": {
+    "Brand Series = ES": "show ES",
+    "Brand Series = End Suction": "show End Suction"
+  },
+  "internal_logic": "Price Group / hydraulic family / selector routing unchanged.",
+  "CHC_G1": "Still not shown under Selection until G1 curve exists.",
+  "sql_required": false,
+  "checks": {
+    "product_saved_brand_series": true,
+    "selection_saved_brand_series": true,
+    "selection_chc_no_hardcode": true,
+    "fallback_chc_saved_series": true,
+    "fallback_es_saved_series": true,
+    "brand_series_source_unchanged": true,
+    "price_group_internal_unchanged": true,
+    "chc_g1_still_selection_hidden": true,
+    "protected_files_unchanged": true,
+    "no_sql": true
+  }
+}

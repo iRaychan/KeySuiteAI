@@ -1,0 +1,30 @@
+{
+  "version": "4.16.04",
+  "checks": [
+    {
+      "name": "quick_selection_price_gate",
+      "passed": true,
+      "detail": "Quick Selection settings source is customer Price-enabled entries, not all Role-authorized entries."
+    },
+    {
+      "name": "quick_selection_user_subset",
+      "passed": true,
+      "detail": "User saved Brand/Series preference remains a subset after the customer Price gate."
+    },
+    {
+      "name": "customer_refresh",
+      "passed": true,
+      "detail": "Customer Brand preference change rerenders both Brand/Series settings and results."
+    },
+    {
+      "name": "no_customer_state",
+      "passed": true,
+      "detail": "No selected customer exposes no Brand/Series and shows an explicit message."
+    },
+    {
+      "name": "no_sql",
+      "passed": true,
+      "detail": "No database migration required."
+    }
+  ]
+}

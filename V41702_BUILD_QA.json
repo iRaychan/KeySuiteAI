@@ -1,0 +1,31 @@
+{
+  "version": "V4.17.02",
+  "source": "V4.17.01 Full Clean",
+  "feature": "Role-assigned Product \u2192 Keylargo",
+  "behavior": {
+    "role_brand_assigned_includes_keylargo": true,
+    "keylargo_all_products_wildcard_supported": true,
+    "keylargo_individual_products": [
+      "Baseplate",
+      "Coupling",
+      "KeyPLC Panel",
+      "Manifold"
+    ],
+    "restricted_user_keylargo_branch_hidden_if_unassigned": true,
+    "restricted_user_only_sees_assigned_keylargo_products": true,
+    "coupling_can_be_authorized_via_keylargo": true
+  },
+  "new_supabase_sql_required": false,
+  "protected_selector_pricing_curve_files_unchanged": true,
+  "checks": {
+    "role_includes_keylargo": true,
+    "role_keylargo_products": true,
+    "authority_keylargo_pages": true,
+    "keylargo_scope_required_when_locked": true,
+    "keylargo_wildcard_not_selector": true,
+    "restricted_tree_uses_assignment": true,
+    "restricted_baseplate_no_longer_always_visible": true,
+    "version_index": true,
+    "protected_files_unchanged": true
+  }
+}

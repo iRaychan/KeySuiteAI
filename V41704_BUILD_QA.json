@@ -1,0 +1,24 @@
+{
+  "version": "V4.17.04",
+  "source": "V4.17.03 Full Clean",
+  "issue": "Quick Selection page freezes after selecting/typing a customer.",
+  "root_cause": "V4.17.03 repeatedly retried a cached failed Customer Price Preference read on every render, creating a tight Promise/render loop.",
+  "fix": {
+    "automatic_retry_loop_removed": true,
+    "read_error_shown_in_ui": true,
+    "manual_retry_button_added": true,
+    "customer_change_clears_previous_error": true
+  },
+  "new_supabase_sql_required": false,
+  "note": "The V4.17.03 Customer Price Preference SQL remains required for the Admin/Owner shared pricing fix.",
+  "protected_unrelated_files_unchanged": true,
+  "checks": {
+    "loop_guard_state": true,
+    "stops_retry_on_error": true,
+    "captures_read_error": true,
+    "retry_is_explicit": true,
+    "event_error_handling": true,
+    "no_business_logic_changes": true,
+    "protected_files_unchanged": true
+  }
+}
