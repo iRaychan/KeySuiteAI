@@ -1,0 +1,1815 @@
+-- KeySuite V4.14.08 — CHC G1 Production
+-- Source technical workbook: 004 - CHC G1 260823 - V1.0.xlsx
+-- Source price workbook:     010 - CHC G1 (Pricelist) - 260823 - V1.0.xlsx
+--
+-- CONFIRMED BEHAVIOUR
+--   * Existing CHC remains G2. No G2 model/curve/technical/dimension/price/PDF data is modified.
+--   * G1 is added to Product/production catalogue, but NOT to hydraulic Selection yet.
+--   * G1 description, hydraulic/technical source and production pricing inherit the mapped G2 model.
+--   * G1 dimensions come from the supplied G1 workbook.
+--   * G1 CHC uses its CHC dimension profile; G1 CHCS + CHCN use their supplied variant profile.
+--   * G1 is read-only in KeySuite: no app amendment/save RPC is created and table writes are revoked.
+--
+-- G1 -> G2 naming mapping:
+--   CHC 8-1      -> CHC 8-10
+--   CHC 8-10     -> CHC 8-100
+--   CHC 32-3-2   -> CHC 32-30-2
+--
+-- The supplied G1 pump price rows are retained for audit only. All 374 supplied pump
+-- price rows currently evaluate to zero and 40 technical models have no matching price row,
+-- so production pricing intentionally inherits G2, matching "all follow G2 except dimension".
+--
+-- Safe to run more than once.
+
+begin;
+
+do $$
+begin
+  if to_regclass('public.ks_products_chc') is null then
+    raise exception 'public.ks_products_chc was not found. Install the existing KeySuite product/pricing foundation first.';
+  end if;
+end
+$$;
+
+-- ---------------------------------------------------------------------------
+-- A. Ensure generation foundation exists without changing legacy ks_products_chc.
+-- ---------------------------------------------------------------------------
+create table if not exists public.ks_pump_generations_v41407 (
+  family_code      text        not null,
+  generation_code  text        not null,
+  display_name     text        not null,
+  sort_order       integer     not null default 0,
+  is_active        boolean     not null default true,
+  is_current       boolean     not null default false,
+  data_ready       boolean     not null default false,
+  notes            text        not null default '',
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+  primary key (family_code, generation_code)
+);
+
+alter table public.ks_pump_generations_v41407
+  add column if not exists product_enabled boolean not null default true;
+alter table public.ks_pump_generations_v41407
+  add column if not exists selection_enabled boolean not null default true;
+alter table public.ks_pump_generations_v41407
+  add column if not exists app_editable boolean not null default true;
+
+insert into public.ks_pump_generations_v41407
+(family_code,generation_code,display_name,sort_order,is_active,is_current,data_ready,notes,
+ product_enabled,selection_enabled,app_editable)
+values
+('CHC','G2','CHC G2',20,true,true,true,
+ 'Existing KeySuite CHC. Frozen by V4.14.08: no G2 data is changed by the G1 production build.',
+ true,true,true)
+on conflict (family_code,generation_code) do nothing;
+
+-- Existing G2 flags remain behaviour-compatible.
+update public.ks_pump_generations_v41407
+set product_enabled=true,
+    selection_enabled=true,
+    updated_at=now()
+where family_code='CHC' and generation_code='G2';
+
+insert into public.ks_pump_generations_v41407
+(family_code,generation_code,display_name,sort_order,is_active,is_current,data_ready,notes,
+ product_enabled,selection_enabled,app_editable)
+values
+('CHC','G1','CHC G1',10,true,false,true,
+ 'Older CHC generation. Product enabled; hydraulic Selection disabled. Non-dimension output inherits mapped G2. App read-only.',
+ true,false,false)
+on conflict (family_code,generation_code) do update
+set display_name='CHC G1',
+    sort_order=10,
+    is_active=true,
+    is_current=false,
+    data_ready=true,
+    product_enabled=true,
+    selection_enabled=false,
+    app_editable=false,
+    notes=excluded.notes,
+    updated_at=now();
+
+-- ---------------------------------------------------------------------------
+-- B. G1 model aliases. No G1 copy is inserted into legacy ks_products_chc.
+--    This avoids duplicate visible model ambiguity and protects G2.
+-- ---------------------------------------------------------------------------
+create table if not exists public.ks_chc_generation_models_v41408 (
+  generation_code              text        not null,
+  model_code                   text        not null,
+  equivalent_model_code        text        not null,
+  family_no                    integer     not null,
+  stage_no                     integer     not null,
+  source_standard              boolean     not null default false,
+  technical_source_generation  text        not null default 'G2',
+  price_source_generation      text        not null default 'G2',
+  product_enabled              boolean     not null default true,
+  selection_enabled            boolean     not null default false,
+  app_editable                 boolean     not null default false,
+  source_technical_snapshot    jsonb       not null default '{}'::jsonb,
+  created_at                   timestamptz not null default now(),
+  updated_at                   timestamptz not null default now(),
+  primary key (generation_code,model_code),
+  unique (generation_code,equivalent_model_code)
+);
+
+insert into public.ks_chc_generation_models_v41408
+(generation_code,model_code,equivalent_model_code,family_no,stage_no,source_standard,
+ technical_source_generation,price_source_generation,product_enabled,selection_enabled,
+ app_editable,source_technical_snapshot)
+values
+('G1','CHC 1-1','CHC 1-10',1,1,false,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"1"}'::jsonb),
+('G1','CHC 1-2','CHC 1-20',1,2,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"2"}'::jsonb),
+('G1','CHC 1-3','CHC 1-30',1,3,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"3"}'::jsonb),
+('G1','CHC 1-4','CHC 1-40',1,4,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"4"}'::jsonb),
+('G1','CHC 1-5','CHC 1-50',1,5,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"5"}'::jsonb),
+('G1','CHC 1-6','CHC 1-60',1,6,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"6"}'::jsonb),
+('G1','CHC 1-7','CHC 1-70',1,7,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"7"}'::jsonb),
+('G1','CHC 1-8','CHC 1-80',1,8,true,'G2','G2',true,false,false,'{"kw":0.55,"hp":0.75,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"8"}'::jsonb),
+('G1','CHC 1-9','CHC 1-90',1,9,true,'G2','G2',true,false,false,'{"kw":0.55,"hp":0.75,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"9"}'::jsonb),
+('G1','CHC 1-10','CHC 1-100',1,10,true,'G2','G2',true,false,false,'{"kw":0.55,"hp":0.75,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"10"}'::jsonb),
+('G1','CHC 1-11','CHC 1-110',1,11,true,'G2','G2',true,false,false,'{"kw":0.55,"hp":0.75,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"11"}'::jsonb),
+('G1','CHC 1-12','CHC 1-120',1,12,true,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"12"}'::jsonb),
+('G1','CHC 1-13','CHC 1-130',1,13,true,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"13"}'::jsonb),
+('G1','CHC 1-14','CHC 1-140',1,14,false,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"14"}'::jsonb),
+('G1','CHC 1-15','CHC 1-150',1,15,true,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"15"}'::jsonb),
+('G1','CHC 1-16','CHC 1-160',1,16,false,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"16"}'::jsonb),
+('G1','CHC 1-17','CHC 1-170',1,17,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"17"}'::jsonb),
+('G1','CHC 1-18','CHC 1-180',1,18,false,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"18"}'::jsonb),
+('G1','CHC 1-19','CHC 1-190',1,19,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"19"}'::jsonb),
+('G1','CHC 1-20','CHC 1-200',1,20,false,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"20"}'::jsonb),
+('G1','CHC 1-21','CHC 1-210',1,21,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"21"}'::jsonb),
+('G1','CHC 1-22','CHC 1-220',1,22,false,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"22"}'::jsonb),
+('G1','CHC 1-23','CHC 1-230',1,23,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"23"}'::jsonb),
+('G1','CHC 1-24','CHC 1-240',1,24,false,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"24"}'::jsonb),
+('G1','CHC 1-25','CHC 1-250',1,25,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"25"}'::jsonb),
+('G1','CHC 1-26','CHC 1-260',1,26,false,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"26"}'::jsonb),
+('G1','CHC 1-27','CHC 1-270',1,27,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"27"}'::jsonb),
+('G1','CHC 1-28','CHC 1-280',1,28,false,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"28"}'::jsonb),
+('G1','CHC 1-29','CHC 1-290',1,29,false,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"29"}'::jsonb),
+('G1','CHC 1-30','CHC 1-300',1,30,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"30"}'::jsonb),
+('G1','CHC 1-31','CHC 1-310',1,31,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"31"}'::jsonb),
+('G1','CHC 1-32','CHC 1-320',1,32,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"32"}'::jsonb),
+('G1','CHC 1-33','CHC 1-330',1,33,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"33"}'::jsonb),
+('G1','CHC 1-34','CHC 1-340',1,34,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"34"}'::jsonb),
+('G1','CHC 1-35','CHC 1-350',1,35,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"35"}'::jsonb),
+('G1','CHC 1-36','CHC 1-360',1,36,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 1","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"36"}'::jsonb),
+('G1','CHC 2-1','CHC 2-10',2,1,false,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"1"}'::jsonb),
+('G1','CHC 2-2','CHC 2-20',2,2,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"2"}'::jsonb),
+('G1','CHC 2-3','CHC 2-30',2,3,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"3"}'::jsonb),
+('G1','CHC 2-4','CHC 2-40',2,4,true,'G2','G2',true,false,false,'{"kw":0.55,"hp":0.75,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"4"}'::jsonb),
+('G1','CHC 2-5','CHC 2-50',2,5,true,'G2','G2',true,false,false,'{"kw":0.55,"hp":0.75,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"5"}'::jsonb),
+('G1','CHC 2-6','CHC 2-60',2,6,true,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"6"}'::jsonb),
+('G1','CHC 2-7','CHC 2-70',2,7,true,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"7"}'::jsonb),
+('G1','CHC 2-8','CHC 2-80',2,8,false,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"8"}'::jsonb),
+('G1','CHC 2-9','CHC 2-90',2,9,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"9"}'::jsonb),
+('G1','CHC 2-10','CHC 2-100',2,10,false,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"10"}'::jsonb),
+('G1','CHC 2-11','CHC 2-110',2,11,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"11"}'::jsonb),
+('G1','CHC 2-12','CHC 2-120',2,12,false,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"12"}'::jsonb),
+('G1','CHC 2-13','CHC 2-130',2,13,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"13"}'::jsonb),
+('G1','CHC 2-14','CHC 2-140',2,14,false,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"14"}'::jsonb),
+('G1','CHC 2-15','CHC 2-150',2,15,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"15"}'::jsonb),
+('G1','CHC 2-16','CHC 2-160',2,16,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"16"}'::jsonb),
+('G1','CHC 2-17','CHC 2-170',2,17,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"17"}'::jsonb),
+('G1','CHC 2-18','CHC 2-180',2,18,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"18"}'::jsonb),
+('G1','CHC 2-19','CHC 2-190',2,19,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"19"}'::jsonb),
+('G1','CHC 2-20','CHC 2-200',2,20,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"20"}'::jsonb),
+('G1','CHC 2-21','CHC 2-210',2,21,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"21"}'::jsonb),
+('G1','CHC 2-22','CHC 2-220',2,22,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"22"}'::jsonb),
+('G1','CHC 2-23','CHC 2-230',2,23,false,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"23"}'::jsonb),
+('G1','CHC 2-24','CHC 2-240',2,24,false,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"24"}'::jsonb),
+('G1','CHC 2-25','CHC 2-250',2,25,false,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":false,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"25"}'::jsonb),
+('G1','CHC 2-26','CHC 2-260',2,26,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 2","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"26"}'::jsonb),
+('G1','CHC 3-1','CHC 3-10',3,1,false,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"1"}'::jsonb),
+('G1','CHC 3-2','CHC 3-20',3,2,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"2"}'::jsonb),
+('G1','CHC 3-3','CHC 3-30',3,3,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"3"}'::jsonb),
+('G1','CHC 3-4','CHC 3-40',3,4,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"4"}'::jsonb),
+('G1','CHC 3-5','CHC 3-50',3,5,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"5"}'::jsonb),
+('G1','CHC 3-6','CHC 3-60',3,6,true,'G2','G2',true,false,false,'{"kw":0.55,"hp":0.75,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"6"}'::jsonb),
+('G1','CHC 3-7','CHC 3-70',3,7,true,'G2','G2',true,false,false,'{"kw":0.55,"hp":0.75,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"7"}'::jsonb),
+('G1','CHC 3-8','CHC 3-80',3,8,true,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"8"}'::jsonb),
+('G1','CHC 3-9','CHC 3-90',3,9,true,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"9"}'::jsonb),
+('G1','CHC 3-10','CHC 3-100',3,10,true,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"10"}'::jsonb),
+('G1','CHC 3-11','CHC 3-110',3,11,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"11"}'::jsonb),
+('G1','CHC 3-12','CHC 3-120',3,12,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"12"}'::jsonb),
+('G1','CHC 3-13','CHC 3-130',3,13,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"13"}'::jsonb),
+('G1','CHC 3-14','CHC 3-140',3,14,false,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"14"}'::jsonb),
+('G1','CHC 3-15','CHC 3-150',3,15,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"15"}'::jsonb),
+('G1','CHC 3-16','CHC 3-160',3,16,false,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"16"}'::jsonb),
+('G1','CHC 3-17','CHC 3-170',3,17,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"17"}'::jsonb),
+('G1','CHC 3-18','CHC 3-180',3,18,false,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"18"}'::jsonb),
+('G1','CHC 3-19','CHC 3-190',3,19,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"19"}'::jsonb),
+('G1','CHC 3-20','CHC 3-200',3,20,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"20"}'::jsonb),
+('G1','CHC 3-21','CHC 3-210',3,21,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"21"}'::jsonb),
+('G1','CHC 3-22','CHC 3-220',3,22,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"22"}'::jsonb),
+('G1','CHC 3-23','CHC 3-230',3,23,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"23"}'::jsonb),
+('G1','CHC 3-24','CHC 3-240',3,24,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"24"}'::jsonb),
+('G1','CHC 3-25','CHC 3-250',3,25,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"25"}'::jsonb),
+('G1','CHC 3-26','CHC 3-260',3,26,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"26"}'::jsonb),
+('G1','CHC 3-27','CHC 3-270',3,27,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"27"}'::jsonb),
+('G1','CHC 3-28','CHC 3-280',3,28,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"28"}'::jsonb),
+('G1','CHC 3-29','CHC 3-290',3,29,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32","stages":"29"}'::jsonb),
+('G1','CHC 3-30','CHC 3-300',3,30,false,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"30"}'::jsonb),
+('G1','CHC 3-31','CHC 3-310',3,31,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"31"}'::jsonb),
+('G1','CHC 3-32','CHC 3-320',3,32,false,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"32"}'::jsonb),
+('G1','CHC 3-33','CHC 3-330',3,33,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"33"}'::jsonb),
+('G1','CHC 3-34','CHC 3-340',3,34,false,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"34"}'::jsonb),
+('G1','CHC 3-35','CHC 3-350',3,35,false,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":false,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"35"}'::jsonb),
+('G1','CHC 3-36','CHC 3-360',3,36,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 3","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"36"}'::jsonb),
+('G1','CHC 4-1','CHC 4-10',4,1,false,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":false,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"1"}'::jsonb),
+('G1','CHC 4-2','CHC 4-20',4,2,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"2"}'::jsonb),
+('G1','CHC 4-3','CHC 4-30',4,3,true,'G2','G2',true,false,false,'{"kw":0.55,"hp":0.75,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"3"}'::jsonb),
+('G1','CHC 4-4','CHC 4-40',4,4,true,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"4"}'::jsonb),
+('G1','CHC 4-5','CHC 4-50',4,5,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"5"}'::jsonb),
+('G1','CHC 4-6','CHC 4-60',4,6,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"6"}'::jsonb),
+('G1','CHC 4-7','CHC 4-70',4,7,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"7"}'::jsonb),
+('G1','CHC 4-8','CHC 4-80',4,8,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"8"}'::jsonb),
+('G1','CHC 4-9','CHC 4-90',4,9,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"9"}'::jsonb),
+('G1','CHC 4-10','CHC 4-100',4,10,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"10"}'::jsonb),
+('G1','CHC 4-11','CHC 4-110',4,11,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"11"}'::jsonb),
+('G1','CHC 4-12','CHC 4-120',4,12,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"12"}'::jsonb),
+('G1','CHC 4-13','CHC 4-130',4,13,false,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":false,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"13"}'::jsonb),
+('G1','CHC 4-14','CHC 4-140',4,14,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"14"}'::jsonb),
+('G1','CHC 4-15','CHC 4-150',4,15,false,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":false,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"15"}'::jsonb),
+('G1','CHC 4-16','CHC 4-160',4,16,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"16"}'::jsonb),
+('G1','CHC 4-17','CHC 4-170',4,17,false,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":false,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"17"}'::jsonb),
+('G1','CHC 4-18','CHC 4-180',4,18,false,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":false,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"18"}'::jsonb),
+('G1','CHC 4-19','CHC 4-190',4,19,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"19"}'::jsonb),
+('G1','CHC 4-20','CHC 4-200',4,20,false,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":false,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"20"}'::jsonb),
+('G1','CHC 4-21','CHC 4-210',4,21,false,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":false,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"21"}'::jsonb),
+('G1','CHC 4-22','CHC 4-220',4,22,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 4","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"22"}'::jsonb),
+('G1','CHC 5-1','CHC 5-10',5,1,false,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"1"}'::jsonb),
+('G1','CHC 5-2','CHC 5-20',5,2,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"2"}'::jsonb),
+('G1','CHC 5-3','CHC 5-30',5,3,true,'G2','G2',true,false,false,'{"kw":0.55,"hp":0.75,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"3"}'::jsonb),
+('G1','CHC 5-4','CHC 5-40',5,4,true,'G2','G2',true,false,false,'{"kw":0.55,"hp":0.75,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"4"}'::jsonb),
+('G1','CHC 5-5','CHC 5-50',5,5,true,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"5"}'::jsonb),
+('G1','CHC 5-6','CHC 5-60',5,6,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"6"}'::jsonb),
+('G1','CHC 5-7','CHC 5-70',5,7,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"7"}'::jsonb),
+('G1','CHC 5-8','CHC 5-80',5,8,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"8"}'::jsonb),
+('G1','CHC 5-9','CHC 5-90',5,9,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"9"}'::jsonb),
+('G1','CHC 5-10','CHC 5-100',5,10,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"10"}'::jsonb),
+('G1','CHC 5-11','CHC 5-110',5,11,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"11"}'::jsonb),
+('G1','CHC 5-12','CHC 5-120',5,12,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"12"}'::jsonb),
+('G1','CHC 5-13','CHC 5-130',5,13,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"13"}'::jsonb),
+('G1','CHC 5-14','CHC 5-140',5,14,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"14"}'::jsonb),
+('G1','CHC 5-15','CHC 5-150',5,15,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"15"}'::jsonb),
+('G1','CHC 5-16','CHC 5-160',5,16,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN32 (G1¼)","stages":"16"}'::jsonb),
+('G1','CHC 5-17','CHC 5-170',5,17,false,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"17"}'::jsonb),
+('G1','CHC 5-18','CHC 5-180',5,18,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"18"}'::jsonb),
+('G1','CHC 5-19','CHC 5-190',5,19,false,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"19"}'::jsonb),
+('G1','CHC 5-20','CHC 5-200',5,20,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"20"}'::jsonb),
+('G1','CHC 5-21','CHC 5-210',5,21,false,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"21"}'::jsonb),
+('G1','CHC 5-22','CHC 5-220',5,22,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32 (G1¼)","stages":"22"}'::jsonb),
+('G1','CHC 5-23','CHC 5-230',5,23,false,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"23"}'::jsonb),
+('G1','CHC 5-24','CHC 5-240',5,24,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"24"}'::jsonb),
+('G1','CHC 5-25','CHC 5-250',5,25,false,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"25"}'::jsonb),
+('G1','CHC 5-26','CHC 5-260',5,26,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"26"}'::jsonb),
+('G1','CHC 5-27','CHC 5-270',5,27,false,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"27"}'::jsonb),
+('G1','CHC 5-28','CHC 5-280',5,28,false,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"28"}'::jsonb),
+('G1','CHC 5-29','CHC 5-290',5,29,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"29"}'::jsonb),
+('G1','CHC 5-30','CHC 5-300',5,30,false,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"30"}'::jsonb),
+('G1','CHC 5-31','CHC 5-310',5,31,false,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"31"}'::jsonb),
+('G1','CHC 5-32','CHC 5-320',5,32,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"32"}'::jsonb),
+('G1','CHC 5-33','CHC 5-330',5,33,false,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"33"}'::jsonb),
+('G1','CHC 5-34','CHC 5-340',5,34,false,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"34"}'::jsonb),
+('G1','CHC 5-35','CHC 5-350',5,35,false,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":false,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"35"}'::jsonb),
+('G1','CHC 5-36','CHC 5-360',5,36,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 5","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN32","stages":"36"}'::jsonb),
+('G1','CHC 8-1','CHC 8-10',8,1,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN40 (G1½)","stages":"1"}'::jsonb),
+('G1','CHC 8-2','CHC 8-20',8,2,true,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN40 (G1½)","stages":"2"}'::jsonb),
+('G1','CHC 8-3','CHC 8-30',8,3,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN40 (G1½)","stages":"3"}'::jsonb),
+('G1','CHC 8-4','CHC 8-40',8,4,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN40 (G1½)","stages":"4"}'::jsonb),
+('G1','CHC 8-5','CHC 8-50',8,5,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN40 (G1½)","stages":"5"}'::jsonb),
+('G1','CHC 8-6','CHC 8-60',8,6,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN40 (G1½)","stages":"6"}'::jsonb),
+('G1','CHC 8-7','CHC 8-70',8,7,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40 (G1½)","stages":"7"}'::jsonb),
+('G1','CHC 8-8','CHC 8-80',8,8,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40 (G1½)","stages":"8"}'::jsonb),
+('G1','CHC 8-9','CHC 8-90',8,9,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40 (G1½)","stages":"9"}'::jsonb),
+('G1','CHC 8-10','CHC 8-100',8,10,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40 (G1½)","stages":"10"}'::jsonb),
+('G1','CHC 8-11','CHC 8-110',8,11,false,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":false,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40 (G1½)","stages":"11"}'::jsonb),
+('G1','CHC 8-12','CHC 8-120',8,12,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40 (G1½)","stages":"12"}'::jsonb),
+('G1','CHC 8-13','CHC 8-130',8,13,false,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":false,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"13"}'::jsonb),
+('G1','CHC 8-14','CHC 8-140',8,14,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"14"}'::jsonb),
+('G1','CHC 8-15','CHC 8-150',8,15,false,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":false,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"15"}'::jsonb),
+('G1','CHC 8-16','CHC 8-160',8,16,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"16"}'::jsonb),
+('G1','CHC 8-17','CHC 8-170',8,17,false,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":false,"series_compare":"CHC 8","max_operating_pressure_bar":22,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"17"}'::jsonb),
+('G1','CHC 8-18','CHC 8-180',8,18,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":22,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"18"}'::jsonb),
+('G1','CHC 8-19','CHC 8-190',8,19,false,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":false,"series_compare":"CHC 8","max_operating_pressure_bar":22,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"19"}'::jsonb),
+('G1','CHC 8-20','CHC 8-200',8,20,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":22,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"20"}'::jsonb),
+('G1','CHC 8-21','CHC 8-210',8,21,false,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":false,"series_compare":"CHC 8","max_operating_pressure_bar":22,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"21"}'::jsonb),
+('G1','CHC 8-22','CHC 8-220',8,22,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 8","max_operating_pressure_bar":22,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"22"}'::jsonb),
+('G1','CHC 10-1','CHC 10-10',10,1,true,'G2','G2',true,false,false,'{"kw":0.37,"hp":0.5,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN40 (G1½)","stages":"1"}'::jsonb),
+('G1','CHC 10-2','CHC 10-20',10,2,true,'G2','G2',true,false,false,'{"kw":0.75,"hp":1,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN40 (G1½)","stages":"2"}'::jsonb),
+('G1','CHC 10-3','CHC 10-30',10,3,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN40 (G1½)","stages":"3"}'::jsonb),
+('G1','CHC 10-4','CHC 10-40',10,4,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN40 (G1½)","stages":"4"}'::jsonb),
+('G1','CHC 10-5','CHC 10-50',10,5,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN40 (G1½)","stages":"5"}'::jsonb),
+('G1','CHC 10-6','CHC 10-60',10,6,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN40 (G1½)","stages":"6"}'::jsonb),
+('G1','CHC 10-7','CHC 10-70',10,7,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40 (G1½)","stages":"7"}'::jsonb),
+('G1','CHC 10-8','CHC 10-80',10,8,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40 (G1½)","stages":"8"}'::jsonb),
+('G1','CHC 10-9','CHC 10-90',10,9,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40 (G1½)","stages":"9"}'::jsonb),
+('G1','CHC 10-10','CHC 10-100',10,10,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40 (G1½)","stages":"10"}'::jsonb),
+('G1','CHC 10-11','CHC 10-110',10,11,false,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":false,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40 (G1½)","stages":"11"}'::jsonb),
+('G1','CHC 10-12','CHC 10-120',10,12,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40 (G1½)","stages":"12"}'::jsonb),
+('G1','CHC 10-13','CHC 10-130',10,13,false,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":false,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"13"}'::jsonb),
+('G1','CHC 10-14','CHC 10-140',10,14,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"14"}'::jsonb),
+('G1','CHC 10-15','CHC 10-150',10,15,false,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":false,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"15"}'::jsonb),
+('G1','CHC 10-16','CHC 10-160',10,16,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"16"}'::jsonb),
+('G1','CHC 10-17','CHC 10-170',10,17,false,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":false,"series_compare":"CHC 10","max_operating_pressure_bar":22,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"17"}'::jsonb),
+('G1','CHC 10-18','CHC 10-180',10,18,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":22,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"18"}'::jsonb),
+('G1','CHC 10-19','CHC 10-190',10,19,false,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":false,"series_compare":"CHC 10","max_operating_pressure_bar":22,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"19"}'::jsonb),
+('G1','CHC 10-20','CHC 10-200',10,20,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":22,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"20"}'::jsonb),
+('G1','CHC 10-21','CHC 10-210',10,21,false,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":false,"series_compare":"CHC 10","max_operating_pressure_bar":22,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"21"}'::jsonb),
+('G1','CHC 10-22','CHC 10-220',10,22,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 10","max_operating_pressure_bar":22,"max_inlet_pressure_bar":10,"connection":"DN40","stages":"22"}'::jsonb),
+('G1','CHC 12-1','CHC 12-10',12,1,false,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":false,"series_compare":"CHC 12","max_operating_pressure_bar":16,"max_inlet_pressure_bar":6,"connection":"DN50","stages":"1"}'::jsonb),
+('G1','CHC 12-2','CHC 12-20',12,2,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":16,"max_inlet_pressure_bar":6,"connection":"DN50","stages":"2"}'::jsonb),
+('G1','CHC 12-3','CHC 12-30',12,3,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":16,"max_inlet_pressure_bar":6,"connection":"DN50","stages":"3"}'::jsonb),
+('G1','CHC 12-4','CHC 12-40',12,4,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":16,"max_inlet_pressure_bar":6,"connection":"DN50","stages":"4"}'::jsonb),
+('G1','CHC 12-5','CHC 12-50',12,5,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"5"}'::jsonb),
+('G1','CHC 12-6','CHC 12-60',12,6,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"6"}'::jsonb),
+('G1','CHC 12-7','CHC 12-70',12,7,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"7"}'::jsonb),
+('G1','CHC 12-8','CHC 12-80',12,8,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"8"}'::jsonb),
+('G1','CHC 12-9','CHC 12-90',12,9,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"9"}'::jsonb),
+('G1','CHC 12-10','CHC 12-100',12,10,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"10"}'::jsonb),
+('G1','CHC 12-11','CHC 12-110',12,11,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"11"}'::jsonb),
+('G1','CHC 12-12','CHC 12-120',12,12,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"12"}'::jsonb),
+('G1','CHC 12-13','CHC 12-130',12,13,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"13"}'::jsonb),
+('G1','CHC 12-14','CHC 12-140',12,14,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"14"}'::jsonb),
+('G1','CHC 12-15','CHC 12-150',12,15,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"15"}'::jsonb),
+('G1','CHC 12-16','CHC 12-160',12,16,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"16"}'::jsonb),
+('G1','CHC 12-17','CHC 12-170',12,17,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"17"}'::jsonb),
+('G1','CHC 12-18','CHC 12-180',12,18,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 12","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"18"}'::jsonb),
+('G1','CHC 15-1','CHC 15-10',15,1,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN50","stages":"1"}'::jsonb),
+('G1','CHC 15-2','CHC 15-20',15,2,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN50","stages":"2"}'::jsonb),
+('G1','CHC 15-3','CHC 15-30',15,3,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN50","stages":"3"}'::jsonb),
+('G1','CHC 15-4','CHC 15-40',15,4,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"4"}'::jsonb),
+('G1','CHC 15-5','CHC 15-50',15,5,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"5"}'::jsonb),
+('G1','CHC 15-6','CHC 15-60',15,6,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"6"}'::jsonb),
+('G1','CHC 15-7','CHC 15-70',15,7,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"7"}'::jsonb),
+('G1','CHC 15-8','CHC 15-80',15,8,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"8"}'::jsonb),
+('G1','CHC 15-9','CHC 15-90',15,9,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"9"}'::jsonb),
+('G1','CHC 15-10','CHC 15-100',15,10,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"10"}'::jsonb),
+('G1','CHC 15-11','CHC 15-110',15,11,false,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":false,"series_compare":"CHC 15","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"11"}'::jsonb),
+('G1','CHC 15-12','CHC 15-120',15,12,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"12"}'::jsonb),
+('G1','CHC 15-13','CHC 15-130',15,13,false,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":false,"series_compare":"CHC 15","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"13"}'::jsonb),
+('G1','CHC 15-14','CHC 15-140',15,14,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"14"}'::jsonb),
+('G1','CHC 15-15','CHC 15-150',15,15,false,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":false,"series_compare":"CHC 15","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"15"}'::jsonb),
+('G1','CHC 15-16','CHC 15-160',15,16,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"16"}'::jsonb),
+('G1','CHC 15-17','CHC 15-170',15,17,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 15","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"17"}'::jsonb),
+('G1','CHC 16-1','CHC 16-10',16,1,true,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN50","stages":"1"}'::jsonb),
+('G1','CHC 16-2','CHC 16-20',16,2,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN50","stages":"2"}'::jsonb),
+('G1','CHC 16-3','CHC 16-30',16,3,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN50","stages":"3"}'::jsonb),
+('G1','CHC 16-4','CHC 16-40',16,4,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"4"}'::jsonb),
+('G1','CHC 16-5','CHC 16-50',16,5,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"5"}'::jsonb),
+('G1','CHC 16-6','CHC 16-60',16,6,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"6"}'::jsonb),
+('G1','CHC 16-7','CHC 16-70',16,7,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"7"}'::jsonb),
+('G1','CHC 16-8','CHC 16-80',16,8,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"8"}'::jsonb),
+('G1','CHC 16-9','CHC 16-90',16,9,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"9"}'::jsonb),
+('G1','CHC 16-10','CHC 16-100',16,10,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"10"}'::jsonb),
+('G1','CHC 16-11','CHC 16-110',16,11,false,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":false,"series_compare":"CHC 16","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"11"}'::jsonb),
+('G1','CHC 16-12','CHC 16-120',16,12,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"12"}'::jsonb),
+('G1','CHC 16-13','CHC 16-130',16,13,false,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":false,"series_compare":"CHC 16","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"13"}'::jsonb),
+('G1','CHC 16-14','CHC 16-140',16,14,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"14"}'::jsonb),
+('G1','CHC 16-15','CHC 16-150',16,15,false,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":false,"series_compare":"CHC 16","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"15"}'::jsonb),
+('G1','CHC 16-16','CHC 16-160',16,16,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"16"}'::jsonb),
+('G1','CHC 16-17','CHC 16-170',16,17,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 16","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"17"}'::jsonb),
+('G1','CHC 20-1','CHC 20-10',20,1,false,'G2','G2',true,false,false,'{"kw":1.1,"hp":1.5,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN50","stages":"1"}'::jsonb),
+('G1','CHC 20-2','CHC 20-20',20,2,false,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN50","stages":"2"}'::jsonb),
+('G1','CHC 20-3','CHC 20-30',20,3,false,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":16,"max_inlet_pressure_bar":8,"connection":"DN50","stages":"3"}'::jsonb),
+('G1','CHC 20-4','CHC 20-40',20,4,false,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"4"}'::jsonb),
+('G1','CHC 20-5','CHC 20-50',20,5,false,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"5"}'::jsonb),
+('G1','CHC 20-6','CHC 20-60',20,6,false,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"6"}'::jsonb),
+('G1','CHC 20-7','CHC 20-70',20,7,false,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"7"}'::jsonb),
+('G1','CHC 20-8','CHC 20-80',20,8,false,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"8"}'::jsonb),
+('G1','CHC 20-9','CHC 20-90',20,9,false,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"9"}'::jsonb),
+('G1','CHC 20-10','CHC 20-100',20,10,false,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"10"}'::jsonb),
+('G1','CHC 20-11','CHC 20-110',20,11,false,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"11"}'::jsonb),
+('G1','CHC 20-12','CHC 20-120',20,12,false,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"12"}'::jsonb),
+('G1','CHC 20-13','CHC 20-130',20,13,false,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"13"}'::jsonb),
+('G1','CHC 20-14','CHC 20-140',20,14,false,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"14"}'::jsonb),
+('G1','CHC 20-15','CHC 20-150',20,15,false,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"15"}'::jsonb),
+('G1','CHC 20-16','CHC 20-160',20,16,false,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"16"}'::jsonb),
+('G1','CHC 20-17','CHC 20-170',20,17,false,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":false,"series_compare":"CHC 20","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN50","stages":"17"}'::jsonb),
+('G1','CHC 32-1-1','CHC 32-10-1',32,1,true,'G2','G2',true,false,false,'{"kw":1.5,"hp":2,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN65","stages":1}'::jsonb),
+('G1','CHC 32-1','CHC 32-10',32,1,true,'G2','G2',true,false,false,'{"kw":2.2,"hp":3,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN65","stages":1}'::jsonb),
+('G1','CHC 32-2-2','CHC 32-20-2',32,2,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN65","stages":2}'::jsonb),
+('G1','CHC 32-2','CHC 32-20',32,2,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN65","stages":2}'::jsonb),
+('G1','CHC 32-3-2','CHC 32-30-2',32,3,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN65","stages":3}'::jsonb),
+('G1','CHC 32-3','CHC 32-30',32,3,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN65","stages":3}'::jsonb),
+('G1','CHC 32-4-2','CHC 32-40-2',32,4,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN65","stages":4}'::jsonb),
+('G1','CHC 32-4','CHC 32-40',32,4,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN65","stages":4}'::jsonb),
+('G1','CHC 32-5-2','CHC 32-50-2',32,5,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN65","stages":5}'::jsonb),
+('G1','CHC 32-5','CHC 32-50',32,5,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN65","stages":5}'::jsonb),
+('G1','CHC 32-6-2','CHC 32-60-2',32,6,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN65","stages":6}'::jsonb),
+('G1','CHC 32-6','CHC 32-60',32,6,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN65","stages":6}'::jsonb),
+('G1','CHC 32-7-2','CHC 32-70-2',32,7,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN65","stages":7}'::jsonb),
+('G1','CHC 32-7','CHC 32-70',32,7,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN65","stages":7}'::jsonb),
+('G1','CHC 32-8-2','CHC 32-80-2',32,8,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN65","stages":8}'::jsonb),
+('G1','CHC 32-8','CHC 32-80',32,8,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN65","stages":8}'::jsonb),
+('G1','CHC 32-9-2','CHC 32-90-2',32,9,true,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN65","stages":9}'::jsonb),
+('G1','CHC 32-9','CHC 32-90',32,9,true,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN65","stages":9}'::jsonb),
+('G1','CHC 32-10-2','CHC 32-100-2',32,10,true,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN65","stages":10}'::jsonb),
+('G1','CHC 32-10','CHC 32-100',32,10,true,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":25,"max_inlet_pressure_bar":10,"connection":"DN65","stages":10}'::jsonb),
+('G1','CHC 32-11-2','CHC 32-110-2',32,11,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN65","stages":1}'::jsonb),
+('G1','CHC 32-11','CHC 32-110',32,11,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN65","stages":1}'::jsonb),
+('G1','CHC 32-12-2','CHC 32-120-2',32,12,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN65","stages":12}'::jsonb),
+('G1','CHC 32-12','CHC 32-120',32,12,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN65","stages":12}'::jsonb),
+('G1','CHC 32-13-2','CHC 32-130-2',32,13,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":30,"max_inlet_pressure_bar":15,"connection":"DN65","stages":13}'::jsonb),
+('G1','CHC 32-13','CHC 32-130',32,13,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":30,"max_inlet_pressure_bar":15,"connection":"DN65","stages":13}'::jsonb),
+('G1','CHC 32-14-2','CHC 32-140-2',32,14,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":30,"max_inlet_pressure_bar":15,"connection":"DN65","stages":14}'::jsonb),
+('G1','CHC 32-14','CHC 32-140',32,14,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 32","max_operating_pressure_bar":30,"max_inlet_pressure_bar":15,"connection":"DN65","stages":14}'::jsonb),
+('G1','CHC 45-1-1','CHC 45-10-1',45,1,true,'G2','G2',true,false,false,'{"kw":3,"hp":4,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN80","stages":1}'::jsonb),
+('G1','CHC 45-1','CHC 45-10',45,1,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN80","stages":1}'::jsonb),
+('G1','CHC 45-2-2','CHC 45-20-2',45,2,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN80","stages":2}'::jsonb),
+('G1','CHC 45-2','CHC 45-20',45,2,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN80","stages":2}'::jsonb),
+('G1','CHC 45-3-2','CHC 45-30-2',45,3,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN80","stages":3}'::jsonb),
+('G1','CHC 45-3','CHC 45-30',45,3,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN80","stages":3}'::jsonb),
+('G1','CHC 45-4-2','CHC 45-40-2',45,4,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN80","stages":4}'::jsonb),
+('G1','CHC 45-4','CHC 45-40',45,4,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN80","stages":4}'::jsonb),
+('G1','CHC 45-5-2','CHC 45-50-2',45,5,true,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN80","stages":5}'::jsonb),
+('G1','CHC 45-5','CHC 45-50',45,5,true,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN80","stages":5}'::jsonb),
+('G1','CHC 45-6-2','CHC 45-60-2',45,6,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN80","stages":6}'::jsonb),
+('G1','CHC 45-6','CHC 45-60',45,6,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN80","stages":6}'::jsonb),
+('G1','CHC 45-7-2','CHC 45-70-2',45,7,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN80","stages":7}'::jsonb),
+('G1','CHC 45-7','CHC 45-70',45,7,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN80","stages":7}'::jsonb),
+('G1','CHC 45-8-2','CHC 45-80-2',45,8,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN80","stages":8}'::jsonb),
+('G1','CHC 45-8','CHC 45-80',45,8,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN80","stages":8}'::jsonb),
+('G1','CHC 45-9-2','CHC 45-90-2',45,9,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN80","stages":9}'::jsonb),
+('G1','CHC 45-9','CHC 45-90',45,9,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN80","stages":9}'::jsonb),
+('G1','CHC 45-10-2','CHC 45-100-2',45,10,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":33,"max_inlet_pressure_bar":15,"connection":"DN80","stages":10}'::jsonb),
+('G1','CHC 45-10','CHC 45-100',45,10,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":33,"max_inlet_pressure_bar":15,"connection":"DN80","stages":10}'::jsonb),
+('G1','CHC 45-11-2','CHC 45-110-2',45,11,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":33,"max_inlet_pressure_bar":15,"connection":"DN80","stages":11}'::jsonb),
+('G1','CHC 45-11','CHC 45-110',45,11,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":33,"max_inlet_pressure_bar":15,"connection":"DN80","stages":11}'::jsonb),
+('G1','CHC 45-12-2','CHC 45-120-2',45,12,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":33,"max_inlet_pressure_bar":15,"connection":"DN80","stages":12}'::jsonb),
+('G1','CHC 45-12','CHC 45-120',45,12,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":33,"max_inlet_pressure_bar":15,"connection":"DN80","stages":12}'::jsonb),
+('G1','CHC 45-13-2','CHC 45-130-2',45,13,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 45","max_operating_pressure_bar":33,"max_inlet_pressure_bar":15,"connection":"DN80","stages":13}'::jsonb),
+('G1','CHC 64-1-1','CHC 64-10-1',64,1,true,'G2','G2',true,false,false,'{"kw":4,"hp":5.5,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN100","stages":1}'::jsonb),
+('G1','CHC 64-1','CHC 64-10',64,1,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN100","stages":1}'::jsonb),
+('G1','CHC 64-2-2','CHC 64-20-2',64,2,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN100","stages":2}'::jsonb),
+('G1','CHC 64-2-1','CHC 64-20-1',64,2,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN100","stages":2}'::jsonb),
+('G1','CHC 64-2','CHC 64-20',64,2,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN100","stages":2}'::jsonb),
+('G1','CHC 64-3-2','CHC 64-30-2',64,3,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN100","stages":3}'::jsonb),
+('G1','CHC 64-3-1','CHC 64-30-1',64,3,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN100","stages":3}'::jsonb),
+('G1','CHC 64-3','CHC 64-30',64,3,true,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN100","stages":3}'::jsonb),
+('G1','CHC 64-4-2','CHC 64-40-2',64,4,true,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN100","stages":4}'::jsonb),
+('G1','CHC 64-4-1','CHC 64-40-1',64,4,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":15,"connection":"DN100","stages":4}'::jsonb),
+('G1','CHC 64-4','CHC 64-40',64,4,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":15,"connection":"DN100","stages":4}'::jsonb),
+('G1','CHC 64-5-2','CHC 64-50-2',64,5,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":15,"connection":"DN100","stages":5}'::jsonb),
+('G1','CHC 64-5-1','CHC 64-50-1',64,5,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":15,"connection":"DN100","stages":5}'::jsonb),
+('G1','CHC 64-5','CHC 64-50',64,5,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":16,"max_inlet_pressure_bar":15,"connection":"DN100","stages":5}'::jsonb),
+('G1','CHC 64-6-2','CHC 64-60-2',64,6,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN100","stages":6}'::jsonb),
+('G1','CHC 64-6-1','CHC 64-60-1',64,6,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN100","stages":6}'::jsonb),
+('G1','CHC 64-6','CHC 64-60',64,6,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN100","stages":6}'::jsonb),
+('G1','CHC 64-7-2','CHC 64-70-2',64,7,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN100","stages":7}'::jsonb),
+('G1','CHC 64-7-1','CHC 64-70-1',64,7,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN100","stages":7}'::jsonb),
+('G1','CHC 64-7','CHC 64-70',64,7,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN100","stages":7}'::jsonb),
+('G1','CHC 64-8-2','CHC 64-80-2',64,8,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN100","stages":8}'::jsonb),
+('G1','CHC 64-8-1','CHC 64-80-1',64,8,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 64","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN100","stages":8}'::jsonb),
+('G1','CHC 90-1-1','CHC 90-10-1',90,1,true,'G2','G2',true,false,false,'{"kw":5.5,"hp":7.5,"standard":true,"series_compare":"CHC 90","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN100","stages":1}'::jsonb),
+('G1','CHC 90-1','CHC 90-10',90,1,true,'G2','G2',true,false,false,'{"kw":7.5,"hp":10,"standard":true,"series_compare":"CHC 90","max_operating_pressure_bar":16,"max_inlet_pressure_bar":4,"connection":"DN100","stages":1}'::jsonb),
+('G1','CHC 90-2-2','CHC 90-20-2',90,2,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 90","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN100","stages":2}'::jsonb),
+('G1','CHC 90-2','CHC 90-20',90,2,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 90","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN100","stages":2}'::jsonb),
+('G1','CHC 90-3-2','CHC 90-30-2',90,3,true,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":true,"series_compare":"CHC 90","max_operating_pressure_bar":16,"max_inlet_pressure_bar":10,"connection":"DN100","stages":3}'::jsonb),
+('G1','CHC 90-3','CHC 90-30',90,3,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 90","max_operating_pressure_bar":16,"max_inlet_pressure_bar":15,"connection":"DN100","stages":3}'::jsonb),
+('G1','CHC 90-4-2','CHC 90-40-2',90,4,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 90","max_operating_pressure_bar":16,"max_inlet_pressure_bar":15,"connection":"DN100","stages":4}'::jsonb),
+('G1','CHC 90-4','CHC 90-40',90,4,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 90","max_operating_pressure_bar":16,"max_inlet_pressure_bar":15,"connection":"DN100","stages":4}'::jsonb),
+('G1','CHC 90-5-2','CHC 90-50-2',90,5,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 90","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN100","stages":5}'::jsonb),
+('G1','CHC 90-5','CHC 90-50',90,5,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 90","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN100","stages":5}'::jsonb),
+('G1','CHC 90-6-2','CHC 90-60-2',90,6,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 90","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN100","stages":6}'::jsonb),
+('G1','CHC 90-6','CHC 90-60',90,6,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 90","max_operating_pressure_bar":25,"max_inlet_pressure_bar":15,"connection":"DN100","stages":6}'::jsonb),
+('G1','CHC 120-1','CHC 120-10',120,1,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":1}'::jsonb),
+('G1','CHC 120-2-2','CHC 120-20-2',120,2,true,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":2}'::jsonb),
+('G1','CHC 120-2-1','CHC 120-20-1',120,2,true,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":2}'::jsonb),
+('G1','CHC 120-2','CHC 120-20',120,2,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":2}'::jsonb),
+('G1','CHC 120-3-2','CHC 120-30-2',120,3,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":3}'::jsonb),
+('G1','CHC 120-3-1','CHC 120-30-1',120,3,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":3}'::jsonb),
+('G1','CHC 120-3','CHC 120-30',120,3,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":3}'::jsonb),
+('G1','CHC 120-4-2','CHC 120-40-2',120,4,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":4}'::jsonb),
+('G1','CHC 120-4-1','CHC 120-40-1',120,4,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":4}'::jsonb),
+('G1','CHC 120-4','CHC 120-40',120,4,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":4}'::jsonb),
+('G1','CHC 120-5-2','CHC 120-50-2',120,5,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":5}'::jsonb),
+('G1','CHC 120-5-1','CHC 120-50-1',120,5,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":5}'::jsonb),
+('G1','CHC 120-5','CHC 120-50',120,5,true,'G2','G2',true,false,false,'{"kw":55,"hp":75,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":5}'::jsonb),
+('G1','CHC 120-6-2','CHC 120-60-2',120,6,true,'G2','G2',true,false,false,'{"kw":55,"hp":75,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":6}'::jsonb),
+('G1','CHC 120-6-1','CHC 120-60-1',120,6,true,'G2','G2',true,false,false,'{"kw":55,"hp":75,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":6}'::jsonb),
+('G1','CHC 120-6','CHC 120-60',120,6,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":6}'::jsonb),
+('G1','CHC 120-7-2','CHC 120-70-2',120,7,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":7}'::jsonb),
+('G1','CHC 120-7-1','CHC 120-70-1',120,7,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":7}'::jsonb),
+('G1','CHC 120-7','CHC 120-70',120,7,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 120","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":7}'::jsonb),
+('G1','CHC 150-1-1','CHC 150-10-1',150,1,true,'G2','G2',true,false,false,'{"kw":11,"hp":15,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":1}'::jsonb),
+('G1','CHC 150-1','CHC 150-10',150,1,true,'G2','G2',true,false,false,'{"kw":15,"hp":20,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":1}'::jsonb),
+('G1','CHC 150-2-2','CHC 150-20-2',150,2,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":2}'::jsonb),
+('G1','CHC 150-2-1','CHC 150-20-1',150,2,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":2}'::jsonb),
+('G1','CHC 150-2','CHC 150-20',150,2,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":2}'::jsonb),
+('G1','CHC 150-3-2','CHC 150-30-2',150,3,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":3}'::jsonb),
+('G1','CHC 150-3-1','CHC 150-30-1',150,3,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":3}'::jsonb),
+('G1','CHC 150-3','CHC 150-30',150,3,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":3}'::jsonb),
+('G1','CHC 150-4-2','CHC 150-40-2',150,4,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":4}'::jsonb),
+('G1','CHC 150-4-1','CHC 150-40-1',150,4,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":4}'::jsonb),
+('G1','CHC 150-4','CHC 150-40',150,4,true,'G2','G2',true,false,false,'{"kw":55,"hp":75,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":4}'::jsonb),
+('G1','CHC 150-5-2','CHC 150-50-2',150,5,true,'G2','G2',true,false,false,'{"kw":55,"hp":75,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":5}'::jsonb),
+('G1','CHC 150-5-1','CHC 150-50-1',150,5,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":5}'::jsonb),
+('G1','CHC 150-5','CHC 150-50',150,5,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":5}'::jsonb),
+('G1','CHC 150-6-2','CHC 150-60-2',150,6,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":6}'::jsonb),
+('G1','CHC 150-6-1','CHC 150-60-1',150,6,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":6}'::jsonb),
+('G1','CHC 150-6','CHC 150-60',150,6,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 150","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN125","stages":6}'::jsonb),
+('G1','CHC 200-1-B','CHC 200-10-B',200,1,true,'G2','G2',true,false,false,'{"kw":18.5,"hp":25,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":1}'::jsonb),
+('G1','CHC 200-1-A','CHC 200-10-A',200,1,true,'G2','G2',true,false,false,'{"kw":22,"hp":30,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":1}'::jsonb),
+('G1','CHC 200-1','CHC 200-10',200,1,true,'G2','G2',true,false,false,'{"kw":30,"hp":40,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":1}'::jsonb),
+('G1','CHC 200-2-2B','CHC 200-20-2B',200,2,true,'G2','G2',true,false,false,'{"kw":37,"hp":50,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":2}'::jsonb),
+('G1','CHC 200-2-2A','CHC 200-20-2A',200,2,true,'G2','G2',true,false,false,'{"kw":45,"hp":60,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":2}'::jsonb),
+('G1','CHC 200-2-A','CHC 200-20-A',200,2,true,'G2','G2',true,false,false,'{"kw":55,"hp":75,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":2}'::jsonb),
+('G1','CHC 200-2','CHC 200-20',200,2,true,'G2','G2',true,false,false,'{"kw":55,"hp":75,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":2}'::jsonb),
+('G1','CHC 200-3-2B','CHC 200-30-2B',200,3,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":3}'::jsonb),
+('G1','CHC 200-3-A-B','CHC 200-30-A-B',200,3,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":3}'::jsonb),
+('G1','CHC 200-3-2A','CHC 200-30-2A',200,3,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":3}'::jsonb),
+('G1','CHC 200-3-B','CHC 200-30-B',200,3,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":3}'::jsonb),
+('G1','CHC 200-3-A','CHC 200-30-A',200,3,true,'G2','G2',true,false,false,'{"kw":75,"hp":100,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":3}'::jsonb),
+('G1','CHC 200-3','CHC 200-30',200,3,true,'G2','G2',true,false,false,'{"kw":90,"hp":125,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":3}'::jsonb),
+('G1','CHC 200-4-2B','CHC 200-40-2B',200,4,true,'G2','G2',true,false,false,'{"kw":90,"hp":125,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":4}'::jsonb),
+('G1','CHC 200-4-2A','CHC 200-40-2A',200,4,true,'G2','G2',true,false,false,'{"kw":110,"hp":150,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":4}'::jsonb),
+('G1','CHC 200-4-A','CHC 200-40-A',200,4,true,'G2','G2',true,false,false,'{"kw":110,"hp":150,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":4}'::jsonb),
+('G1','CHC 200-4','CHC 200-40',200,4,true,'G2','G2',true,false,false,'{"kw":110,"hp":150,"standard":true,"series_compare":"CHC 200","max_operating_pressure_bar":20,"max_inlet_pressure_bar":15,"connection":"DN150","stages":4}'::jsonb)
+on conflict (generation_code,model_code) do update
+set equivalent_model_code=excluded.equivalent_model_code,
+    family_no=excluded.family_no,
+    stage_no=excluded.stage_no,
+    source_standard=excluded.source_standard,
+    technical_source_generation='G2',
+    price_source_generation='G2',
+    product_enabled=true,
+    selection_enabled=false,
+    app_editable=false,
+    source_technical_snapshot=excluded.source_technical_snapshot,
+    updated_at=now();
+
+-- ---------------------------------------------------------------------------
+-- C. G1 model-specific vertical dimensions from supplied technical workbook.
+-- ---------------------------------------------------------------------------
+create table if not exists public.ks_chc_g1_model_dimensions_v41408 (
+  generation_code text        not null default 'G1',
+  model_code      text        not null,
+  family_no       integer     not null,
+  b1_mm           numeric,
+  b2_mm           numeric,
+  height_mm       numeric,
+  d1_mm           numeric,
+  d2_mm           numeric,
+  weight_kg       numeric,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  primary key (generation_code,model_code)
+);
+
+insert into public.ks_chc_g1_model_dimensions_v41408
+(generation_code,model_code,family_no,b1_mm,b2_mm,height_mm,d1_mm,d2_mm,weight_kg)
+values
+('G1','CHC 1-1',1,262,205,467,133,124,23),
+('G1','CHC 1-2',1,262,205,467,133,124,23),
+('G1','CHC 1-3',1,280,205,485,133,124,23),
+('G1','CHC 1-4',1,298,205,503,133,124,23),
+('G1','CHC 1-5',1,316,205,521,133,124,24),
+('G1','CHC 1-6',1,334,205,539,133,124,24),
+('G1','CHC 1-7',1,352,205,557,133,124,25),
+('G1','CHC 1-8',1,370,205,575,133,124,25),
+('G1','CHC 1-9',1,388,205,593,133,124,26),
+('G1','CHC 1-10',1,406,205,611,133,124,26),
+('G1','CHC 1-11',1,424,205,629,133,124,27),
+('G1','CHC 1-12',1,442,205,647,133,124,28),
+('G1','CHC 1-13',1,460,205,665,133,124,29),
+('G1','CHC 1-14',1,496,205,701,133,124,30),
+('G1','CHC 1-15',1,496,205,701,133,124,30),
+('G1','CHC 1-16',1,538,241,779,154,133,32),
+('G1','CHC 1-17',1,538,241,779,154,133,32),
+('G1','CHC 1-18',1,574,241,815,154,133,33),
+('G1','CHC 1-19',1,574,241,815,154,133,33),
+('G1','CHC 1-20',1,610,241,851,154,133,34),
+('G1','CHC 1-21',1,610,241,851,154,133,34),
+('G1','CHC 1-22',1,646,241,887,154,133,36),
+('G1','CHC 1-23',1,646,241,887,154,133,36),
+('G1','CHC 1-24',1,690,293,983,177,145,43),
+('G1','CHC 1-25',1,690,293,983,177,145,43),
+('G1','CHC 1-26',1,726,293,1019,177,145,44),
+('G1','CHC 1-27',1,726,293,1019,177,145,44),
+('G1','CHC 1-28',1,780,293,1073,177,145,46),
+('G1','CHC 1-29',1,780,293,1073,177,145,46),
+('G1','CHC 1-30',1,780,293,1073,177,145,46),
+('G1','CHC 1-31',1,834,293,1127,177,145,49),
+('G1','CHC 1-32',1,834,293,1127,177,145,49),
+('G1','CHC 1-33',1,834,293,1127,177,145,49),
+('G1','CHC 1-34',1,888,293,1181,177,145,50),
+('G1','CHC 1-35',1,888,293,1181,177,145,50),
+('G1','CHC 1-36',1,888,293,1181,177,145,50),
+('G1','CHC 2-1',2,262,205,467,133,102,22),
+('G1','CHC 2-2',2,262,205,467,133,102,22),
+('G1','CHC 2-3',2,280,205,485,133,102,22),
+('G1','CHC 2-4',2,298,205,503,133,102,25),
+('G1','CHC 2-5',2,316,205,521,133,102,25),
+('G1','CHC 2-6',2,334,205,539,133,102,27),
+('G1','CHC 2-7',2,352,205,557,133,102,27),
+('G1','CHC 2-8',2,394,205,599,154,111,29),
+('G1','CHC 2-9',2,394,241,635,154,111,29),
+('G1','CHC 2-10',2,430,241,671,154,111,29),
+('G1','CHC 2-11',2,430,241,671,154,111,29),
+('G1','CHC 2-12',2,466,241,707,154,111,32),
+('G1','CHC 2-13',2,466,293,759,154,111,32),
+('G1','CHC 2-14',2,502,293,795,154,111,32),
+('G1','CHC 2-15',2,502,293,795,154,111,32),
+('G1','CHC 2-16',2,558,293,851,177,116,38),
+('G1','CHC 2-17',2,558,293,851,177,116,38),
+('G1','CHC 2-18',2,558,293,851,177,116,38),
+('G1','CHC 2-19',2,630,293,923,177,116,43),
+('G1','CHC 2-20',2,630,293,923,177,116,43),
+('G1','CHC 2-21',2,630,293,923,177,116,43),
+('G1','CHC 2-22',2,630,293,923,177,116,43),
+('G1','CHC 2-23',2,702,293,995,177,116,48),
+('G1','CHC 2-24',2,702,293,995,177,116,48),
+('G1','CHC 2-25',2,702,293,995,177,116,48),
+('G1','CHC 2-26',2,702,293,995,177,116,48),
+('G1','CHC 3-1',3,262,205,467,133,102,23),
+('G1','CHC 3-2',3,262,205,467,133,102,23),
+('G1','CHC 3-3',3,280,205,485,133,102,23),
+('G1','CHC 3-4',3,298,205,503,133,102,24),
+('G1','CHC 3-5',3,316,205,521,133,102,24),
+('G1','CHC 3-6',3,334,205,539,133,102,26),
+('G1','CHC 3-7',3,352,205,557,133,102,26),
+('G1','CHC 3-8',3,370,205,575,133,102,27),
+('G1','CHC 3-9',3,388,205,593,133,102,27),
+('G1','CHC 3-10',3,406,205,611,133,102,28),
+('G1','CHC 3-11',3,430,241,671,154,111,30),
+('G1','CHC 3-12',3,448,241,689,154,111,30),
+('G1','CHC 3-13',3,466,241,707,154,111,32),
+('G1','CHC 3-14',3,502,241,743,154,111,32),
+('G1','CHC 3-15',3,502,241,743,154,111,32),
+('G1','CHC 3-16',3,538,293,831,154,111,36),
+('G1','CHC 3-17',3,538,293,831,154,111,36),
+('G1','CHC 3-18',3,574,293,867,154,111,37),
+('G1','CHC 3-19',3,574,293,867,154,111,37),
+('G1','CHC 3-20',3,618,293,911,177,116,40),
+('G1','CHC 3-21',3,618,293,911,177,116,40),
+('G1','CHC 3-22',3,654,293,947,177,116,42),
+('G1','CHC 3-23',3,654,293,947,177,116,42),
+('G1','CHC 3-24',3,690,293,983,177,116,44),
+('G1','CHC 3-25',3,690,293,983,177,116,44),
+('G1','CHC 3-26',3,726,293,1019,177,116,45),
+('G1','CHC 3-27',3,726,293,1019,177,116,45),
+('G1','CHC 3-28',3,762,293,1055,177,116,46),
+('G1','CHC 3-29',3,762,293,1055,177,116,46),
+('G1','CHC 3-30',3,798,293,1091,177,116,50),
+('G1','CHC 3-31',3,798,293,1091,177,116,50),
+('G1','CHC 3-32',3,834,293,1127,177,116,52),
+('G1','CHC 3-33',3,834,293,1127,177,116,52),
+('G1','CHC 3-34',3,888,293,1181,177,116,54),
+('G1','CHC 3-35',3,888,293,1181,177,116,54),
+('G1','CHC 3-36',3,888,293,1181,177,116,54),
+('G1','CHC 4-1',4,262,205,467,133,102,25),
+('G1','CHC 4-2',4,262,205,467,133,102,25),
+('G1','CHC 4-3',4,280,205,485,133,102,25),
+('G1','CHC 4-4',4,299,205,504,133,102,26),
+('G1','CHC 4-5',4,322,241,563,154,111,26),
+('G1','CHC 4-6',4,340,241,581,154,111,28),
+('G1','CHC 4-7',4,358,293,651,154,111,33),
+('G1','CHC 4-8',4,376,293,669,154,111,33),
+('G1','CHC 4-9',4,420,293,713,177,116,35),
+('G1','CHC 4-10',4,420,293,713,177,116,35),
+('G1','CHC 4-11',4,456,293,749,177,116,35),
+('G1','CHC 4-12',4,456,293,749,177,116,35),
+('G1','CHC 4-13',4,492,293,785,177,116,38),
+('G1','CHC 4-14',4,492,293,785,177,116,38),
+('G1','CHC 4-15',4,528,293,821,177,116,38),
+('G1','CHC 4-16',4,528,293,821,177,116,38),
+('G1','CHC 4-17',4,602,305,907,197,148,48),
+('G1','CHC 4-18',4,602,305,907,197,148,48),
+('G1','CHC 4-19',4,602,305,907,197,148,48),
+('G1','CHC 4-20',4,656,305,961,197,148,53),
+('G1','CHC 4-21',4,656,305,961,197,148,53),
+('G1','CHC 4-22',4,656,305,961,197,148,53),
+('G1','CHC 5-1',5,280,205,485,133,102,23),
+('G1','CHC 5-2',5,280,205,485,133,102,23),
+('G1','CHC 5-3',5,307,205,512,133,102,23),
+('G1','CHC 5-4',5,334,205,539,133,102,25),
+('G1','CHC 5-5',5,361,205,566,133,102,25),
+('G1','CHC 5-6',5,394,241,635,154,111,29),
+('G1','CHC 5-7',5,421,241,662,154,111,31),
+('G1','CHC 5-8',5,448,241,689,154,111,32),
+('G1','CHC 5-9',5,483,293,776,177,144.5,38),
+('G1','CHC 5-10',5,510,293,803,177,144.5,39),
+('G1','CHC 5-11',5,537,293,830,177,144.5,40),
+('G1','CHC 5-12',5,564,293,857,177,144.5,41),
+('G1','CHC 5-13',5,591,293,884,177,144.5,42),
+('G1','CHC 5-14',5,618,293,911,177,144.5,43),
+('G1','CHC 5-15',5,645,293,938,177,144.5,44),
+('G1','CHC 5-16',5,672,293,965,177,144.5,45),
+('G1','CHC 5-17',5,726,293,1019,177,116,48),
+('G1','CHC 5-18',5,726,293,1019,177,116,48),
+('G1','CHC 5-19',5,780,293,1073,177,116,49),
+('G1','CHC 5-20',5,780,293,1073,177,116,49),
+('G1','CHC 5-21',5,854,305,1159,197,148,61),
+('G1','CHC 5-22',5,854,305,1159,197,148,61),
+('G1','CHC 5-23',5,908,305,1213,197,148,62),
+('G1','CHC 5-24',5,908,305,1213,197,148,62),
+('G1','CHC 5-25',5,962,305,1267,197,148,64),
+('G1','CHC 5-26',5,962,305,1267,197,148,64),
+('G1','CHC 5-27',5,1043,305,1348,197,148,67),
+('G1','CHC 5-28',5,1043,305,1348,197,148,67),
+('G1','CHC 5-29',5,1043,305,1348,197,148,67),
+('G1','CHC 5-30',5,1145,390,1535,275,210,82),
+('G1','CHC 5-31',5,1145,390,1535,275,210,82),
+('G1','CHC 5-32',5,1145,390,1535,275,210,82),
+('G1','CHC 5-33',5,1253,390,1643,275,210,85),
+('G1','CHC 5-34',5,1253,390,1643,275,210,85),
+('G1','CHC 5-35',5,1253,390,1643,275,210,85),
+('G1','CHC 5-36',5,1253,390,1643,275,210,85),
+('G1','CHC 8-1',8,322,205,527,133,102,38),
+('G1','CHC 8-2',8,352,205,557,133,102,40),
+('G1','CHC 8-3',8,388,241,629,154,111,43),
+('G1','CHC 8-4',8,418,293,711,154,111,50),
+('G1','CHC 8-5',8,456,293,749,177,116,53),
+('G1','CHC 8-6',8,486,293,779,177,116,55),
+('G1','CHC 8-7',8,516,293,809,177,116,60),
+('G1','CHC 8-8',8,546,293,839,177,116,61),
+('G1','CHC 8-9',8,576,293,869,177,116,63),
+('G1','CHC 8-10',8,626,305,931,197,148,65),
+('G1','CHC 8-11',8,686,305,991,197,148,68),
+('G1','CHC 8-12',8,686,305,991,197,148,68),
+('G1','CHC 8-13',8,761,390,1151,275,210,98),
+('G1','CHC 8-14',8,761,390,1151,275,210,98),
+('G1','CHC 8-15',8,821,390,1211,275,210,100),
+('G1','CHC 8-16',8,821,390,1211,275,210,100),
+('G1','CHC 8-17',8,881,390,1271,275,210,125),
+('G1','CHC 8-18',8,881,390,1271,275,210,125),
+('G1','CHC 8-19',8,941,390,1331,275,210,128),
+('G1','CHC 8-20',8,941,390,1331,275,210,128),
+('G1','CHC 8-21',8,1001,390,1391,275,210,130),
+('G1','CHC 8-22',8,1001,390,1391,275,210,130),
+('G1','CHC 10-1',10,322,205,527,133,102,38),
+('G1','CHC 10-2',10,352,205,557,133,102,40),
+('G1','CHC 10-3',10,388,241,629,154,111,43),
+('G1','CHC 10-4',10,418,293,711,154,111,50),
+('G1','CHC 10-5',10,456,293,749,177,116,53),
+('G1','CHC 10-6',10,486,293,779,177,116,55),
+('G1','CHC 10-7',10,516,293,809,177,116,60),
+('G1','CHC 10-8',10,546,293,839,177,116,61),
+('G1','CHC 10-9',10,576,293,869,177,116,63),
+('G1','CHC 10-10',10,626,305,931,197,148,65),
+('G1','CHC 10-11',10,686,305,991,197,148,68),
+('G1','CHC 10-12',10,686,305,991,197,148,68),
+('G1','CHC 10-13',10,761,390,1151,275,210,98),
+('G1','CHC 10-14',10,761,390,1151,275,210,98),
+('G1','CHC 10-15',10,821,390,1211,275,210,100),
+('G1','CHC 10-16',10,821,390,1211,275,210,100),
+('G1','CHC 10-17',10,881,390,1271,275,210,125),
+('G1','CHC 10-18',10,881,390,1271,275,210,125),
+('G1','CHC 10-19',10,941,390,1331,275,210,128),
+('G1','CHC 10-20',10,941,390,1331,275,210,128),
+('G1','CHC 10-21',10,1001,390,1391,275,210,130),
+('G1','CHC 10-22',10,1001,390,1391,275,210,130),
+('G1','CHC 12-1',12,379,290,669,190,150,37),
+('G1','CHC 12-2',12,379,290,669,190,150,37),
+('G1','CHC 12-3',12,409,290,699,190,150,40),
+('G1','CHC 12-4',12,449,325,774,197,165,47),
+('G1','CHC 12-5',12,479,325,804,197,165,48),
+('G1','CHC 12-6',12,509,335,844,230,188,58),
+('G1','CHC 12-7',12,559,430,989,260,208,76),
+('G1','CHC 12-8',12,589,430,1019,260,208,76),
+('G1','CHC 12-9',12,619,430,1049,260,208,78),
+('G1','CHC 12-10',12,649,430,1079,260,208,78),
+('G1','CHC 12-11',12,709,430,1139,260,208,80),
+('G1','CHC 12-12',12,709,430,1139,260,208,80),
+('G1','CHC 12-13',12,859,505,1364,330,255,151),
+('G1','CHC 12-14',12,859,505,1364,330,255,151),
+('G1','CHC 12-15',12,919,505,1424,330,255,151),
+('G1','CHC 12-16',12,919,505,1424,330,255,151),
+('G1','CHC 12-17',12,979,505,1484,330,255,153),
+('G1','CHC 12-18',12,979,505,1484,330,255,153),
+('G1','CHC 15-1',15,353,241,594,154,111,45),
+('G1','CHC 15-2',15,406,293,699,177,116,50),
+('G1','CHC 15-3',15,451,293,744,177,116,55),
+('G1','CHC 15-4',15,516,305,821,197,148,60),
+('G1','CHC 15-5',15,561,305,866,197,148,63),
+('G1','CHC 15-6',15,627,390,1017,275,210,93),
+('G1','CHC 15-7',15,672,390,1062,275,210,97),
+('G1','CHC 15-8',15,717,390,1107,275,210,100),
+('G1','CHC 15-9',15,762,390,1152,275,210,102),
+('G1','CHC 15-10',15,827,505,1332,330,255,145),
+('G1','CHC 15-11',15,917,505,1422,330,255,150),
+('G1','CHC 15-12',15,917,505,1422,330,255,150),
+('G1','CHC 15-13',15,1007,505,1512,330,255,152),
+('G1','CHC 15-14',15,1007,505,1512,330,255,152),
+('G1','CHC 15-15',15,1097,505,1602,330,255,153),
+('G1','CHC 15-16',15,1097,505,1602,330,255,153),
+('G1','CHC 15-17',15,1142,505,1647,330,255,165),
+('G1','CHC 16-1',16,353,241,594,154,111,45),
+('G1','CHC 16-2',16,406,293,699,177,116,50),
+('G1','CHC 16-3',16,451,293,744,177,116,55),
+('G1','CHC 16-4',16,516,305,821,197,148,60),
+('G1','CHC 16-5',16,561,305,866,197,148,63),
+('G1','CHC 16-6',16,627,390,1017,275,210,93),
+('G1','CHC 16-7',16,672,390,1062,275,210,97),
+('G1','CHC 16-8',16,717,390,1107,275,210,100),
+('G1','CHC 16-9',16,762,390,1152,275,210,102),
+('G1','CHC 16-10',16,827,505,1332,330,255,145),
+('G1','CHC 16-11',16,917,505,1422,330,255,150),
+('G1','CHC 16-12',16,917,505,1422,330,255,150),
+('G1','CHC 16-13',16,1007,505,1512,330,255,152),
+('G1','CHC 16-14',16,1007,505,1512,330,255,152),
+('G1','CHC 16-15',16,1097,505,1602,330,255,153),
+('G1','CHC 16-16',16,1097,505,1602,330,255,153),
+('G1','CHC 16-17',16,1142,505,1647,330,255,165),
+('G1','CHC 20-1',20,353,241,594,154,111,45),
+('G1','CHC 20-2',20,406,293,699,177,116,50),
+('G1','CHC 20-3',20,471,305,776,197,148,60),
+('G1','CHC 20-4',20,537,305,842,197,148,85),
+('G1','CHC 20-5',20,582,390,972,275,210,88),
+('G1','CHC 20-6',20,627,390,1017,275,210,92),
+('G1','CHC 20-7',20,672,390,1062,275,210,95),
+('G1','CHC 20-8',20,737,505,1242,330,255,135),
+('G1','CHC 20-9',20,827,505,1332,330,255,141),
+('G1','CHC 20-10',20,827,505,1332,330,255,141),
+('G1','CHC 20-11',20,917,505,1422,330,255,148),
+('G1','CHC 20-12',20,917,505,1422,330,255,148),
+('G1','CHC 20-13',20,1007,505,1512,330,255,153),
+('G1','CHC 20-14',20,1007,505,1512,330,255,153),
+('G1','CHC 20-15',20,1097,560,1657,330,255,173),
+('G1','CHC 20-16',20,1097,560,1657,330,255,173),
+('G1','CHC 20-17',20,1142,560,1702,330,255,176),
+('G1','CHC 32-1-1',32,455,293,748,154,111,62),
+('G1','CHC 32-1',32,455,293,748,177,116,63),
+('G1','CHC 32-2-2',32,525,293,818,177,116,77),
+('G1','CHC 32-2',32,525,305,830,197,148,88),
+('G1','CHC 32-3-2',32,595,305,900,197,148,107),
+('G1','CHC 32-3',32,620,390,1010,275,210,107),
+('G1','CHC 32-4-2',32,690,390,1080,275,210,119),
+('G1','CHC 32-4',32,690,390,1080,275,210,120),
+('G1','CHC 32-5-2',32,915,505,1420,330,255,173),
+('G1','CHC 32-5',32,915,505,1420,330,255,174),
+('G1','CHC 32-6-2',32,985,505,1490,330,255,180),
+('G1','CHC 32-6',32,985,505,1490,330,255,181),
+('G1','CHC 32-7-2',32,1055,505,1560,330,255,210),
+('G1','CHC 32-7',32,1055,505,1560,330,255,211),
+('G1','CHC 32-8-2',32,1125,505,1630,330,255,213),
+('G1','CHC 32-8',32,1125,505,1630,330,255,214),
+('G1','CHC 32-9-2',32,1195,560,1755,330,255,230),
+('G1','CHC 32-9',32,1195,560,1755,330,255,230),
+('G1','CHC 32-10-2',32,1265,560,1825,330,255,235),
+('G1','CHC 32-10',32,1265,560,1825,330,255,236),
+('G1','CHC 32-11-2',32,1335,590,1925,380,280,275),
+('G1','CHC 32-11',32,1335,590,1925,380,280,276),
+('G1','CHC 32-12-2',32,1405,590,1995,380,280,280),
+('G1','CHC 32-12',32,1405,590,1995,380,280,281),
+('G1','CHC 32-13-2',32,1475,660,2135,420,305,400),
+('G1','CHC 32-13',32,1475,660,2135,420,305,400),
+('G1','CHC 32-14-2',32,1525,660,2185,420,305,405),
+('G1','CHC 32-14',32,1525,660,2185,420,305,405),
+('G1','CHC 45-1-1',45,561,293,854,197,165,86),
+('G1','CHC 45-1',45,561,315,876,260,165,86),
+('G1','CHC 45-2-2',45,641,430,1071,260,208,102),
+('G1','CHC 45-2',45,641,430,1071,330,208,102),
+('G1','CHC 45-3-2',45,826,490,1316,330,255,175),
+('G1','CHC 45-3',45,826,490,1316,330,255,175),
+('G1','CHC 45-4-2',45,906,490,1396,330,255,187),
+('G1','CHC 45-4',45,906,490,1396,330,255,187),
+('G1','CHC 45-5-2',45,986,550,1536,330,255,208),
+('G1','CHC 45-5',45,986,550,1536,330,255,208),
+('G1','CHC 45-6-2',45,1066,590,1656,360,285,251),
+('G1','CHC 45-6',45,1066,590,1656,360,285,251),
+('G1','CHC 45-7-2',45,1146,660,1806,420,310,315),
+('G1','CHC 45-7',45,1146,660,1806,420,310,315),
+('G1','CHC 45-8-2',45,1226,660,1886,420,310,319),
+('G1','CHC 45-8',45,1226,660,1886,420,310,319),
+('G1','CHC 45-9-2',45,1306,660,1966,420,310,323),
+('G1','CHC 45-9',45,1306,660,1966,420,310,323),
+('G1','CHC 45-10-2',45,1386,660,2046,420,310,347),
+('G1','CHC 45-10',45,1386,660,2046,420,310,347),
+('G1','CHC 45-11-2',45,1466,700,2166,470,345,413),
+('G1','CHC 45-11',45,1466,700,2166,470,345,413),
+('G1','CHC 45-12-2',45,1546,700,2246,470,345,417),
+('G1','CHC 45-12',45,1546,700,2246,470,345,417),
+('G1','CHC 45-13-2',45,1626,700,2326,470,345,421),
+('G1','CHC 64-1-1',64,561,335,896,230,188,105),
+('G1','CHC 64-1',64,561,430,991,260,208,110),
+('G1','CHC 64-2-2',64,644,430,1074,260,208,120),
+('G1','CHC 64-2-1',64,754,490,1244,330,255,155),
+('G1','CHC 64-2',64,754,490,1244,330,255,155),
+('G1','CHC 64-3-2',64,836,490,1326,330,255,195),
+('G1','CHC 64-3-1',64,836,490,1326,330,255,195),
+('G1','CHC 64-3',64,836,550,1386,330,255,205),
+('G1','CHC 64-4-2',64,919,550,1469,330,255,208),
+('G1','CHC 64-4-1',64,919,590,1509,360,285,260),
+('G1','CHC 64-4',64,919,590,1509,360,285,260),
+('G1','CHC 64-5-2',64,1001,660,1661,420,310,345),
+('G1','CHC 64-5-1',64,1001,660,1661,420,310,345),
+('G1','CHC 64-5',64,1001,660,1661,420,310,345),
+('G1','CHC 64-6-2',64,1084,660,1744,420,310,350),
+('G1','CHC 64-6-1',64,1084,660,1744,420,310,370),
+('G1','CHC 64-6',64,1084,660,1744,420,310,370),
+('G1','CHC 64-7-2',64,1166,660,1826,420,310,375),
+('G1','CHC 64-7-1',64,1166,660,1826,420,310,375),
+('G1','CHC 64-7',64,1166,700,1866,420,310,435),
+('G1','CHC 64-8-2',64,1248,700,1948,470,345,440),
+('G1','CHC 64-8-1',64,1248,700,1948,470,345,440),
+('G1','CHC 90-1-1',90,571,430,1001,260,208,120),
+('G1','CHC 90-1',90,571,430,1001,260,208,122),
+('G1','CHC 90-2-2',90,773,490,1263,330,255,165),
+('G1','CHC 90-2',90,773,490,1263,330,255,198),
+('G1','CHC 90-3-2',90,865,550,1415,330,255,212),
+('G1','CHC 90-3',90,865,590,1455,360,285,265),
+('G1','CHC 90-4-2',90,957,660,1617,420,310,348),
+('G1','CHC 90-4',90,957,660,1617,420,310,348),
+('G1','CHC 90-5-2',90,1049,660,1709,420,310,375),
+('G1','CHC 90-5',90,1049,660,1709,420,310,375),
+('G1','CHC 90-6-2',90,1141,700,1841,475,345,438),
+('G1','CHC 90-6',90,1141,700,1841,475,345,438),
+('G1','CHC 120-1',120,840,490,1330,330,255,230),
+('G1','CHC 120-2-2',120,1000,550,1550,330,255,250),
+('G1','CHC 120-2-1',120,1000,550,1550,330,255,250),
+('G1','CHC 120-2',120,1000,590,1590,360,285,285),
+('G1','CHC 120-3-2',120,1160,660,1820,400,310,360),
+('G1','CHC 120-3-1',120,1160,660,1820,400,310,360),
+('G1','CHC 120-3',120,1160,660,1820,400,310,360),
+('G1','CHC 120-4-2',120,1320,660,1980,400,310,400),
+('G1','CHC 120-4-1',120,1320,660,1980,400,310,400),
+('G1','CHC 120-4',120,1480,700,2180,460,340,450),
+('G1','CHC 120-5-2',120,1480,700,2180,460,340,470),
+('G1','CHC 120-5-1',120,1480,700,2180,460,340,470),
+('G1','CHC 120-5',120,1480,770,2250,540,370,555),
+('G1','CHC 120-6-2',120,1670,770,2440,540,370,585),
+('G1','CHC 120-6-1',120,1670,770,2440,540,370,585),
+('G1','CHC 120-6',120,1670,845,2515,580,410,685),
+('G1','CHC 120-7-2',120,1830,845,2675,580,410,715),
+('G1','CHC 120-7-1',120,1830,845,2675,580,410,715),
+('G1','CHC 120-7',120,1830,845,2675,580,410,715),
+('G1','CHC 150-1-1',150,840,490,1330,330,255,230),
+('G1','CHC 150-1',150,840,490,1330,330,255,235),
+('G1','CHC 150-2-2',150,1000,590,1590,360,285,295),
+('G1','CHC 150-2-1',150,1000,590,1590,360,285,295),
+('G1','CHC 150-2',150,1000,660,1660,400,310,335),
+('G1','CHC 150-3-2',150,1160,660,1820,400,310,360),
+('G1','CHC 150-3-1',150,1160,660,1820,400,310,385),
+('G1','CHC 150-3',150,1160,660,1820,400,310,385),
+('G1','CHC 150-4-2',150,1320,700,2020,460,340,460),
+('G1','CHC 150-4-1',150,1320,700,2020,460,340,460),
+('G1','CHC 150-4',150,1320,770,2090,540,370,545),
+('G1','CHC 150-5-2',150,1510,770,2280,540,370,570),
+('G1','CHC 150-5-1',150,1510,845,2355,580,410,670),
+('G1','CHC 150-5',150,1510,845,2355,580,410,670),
+('G1','CHC 150-6-2',150,1670,845,2515,580,410,700),
+('G1','CHC 150-6-1',150,1670,845,2515,580,410,700),
+('G1','CHC 150-6',150,1670,845,2515,580,410,700),
+('G1','CHC 200-1-B',200,907,550,1457,330,255,311),
+('G1','CHC 200-1-A',200,907,575,1482,360,285,347),
+('G1','CHC 200-1',200,907,650,1557,400,310,403),
+('G1','CHC 200-2-2B',200,1101,650,1751,400,310,447),
+('G1','CHC 200-2-2A',200,1101,685,1786,460,340,504),
+('G1','CHC 200-2-A',200,1131,760,1891,540,370,595),
+('G1','CHC 200-2',200,1131,760,1891,540,370,595),
+('G1','CHC 200-3-2B',200,1325,845,2170,580,410,748),
+('G1','CHC 200-3-A-B',200,1325,845,2170,580,410,748),
+('G1','CHC 200-3-2A',200,1325,845,2170,580,410,748),
+('G1','CHC 200-3-B',200,1325,845,2170,580,410,748),
+('G1','CHC 200-3-A',200,1325,845,2170,580,410,748),
+('G1','CHC 200-3',200,1325,895,2220,580,410,817),
+('G1','CHC 200-4-2B',200,1519,895,2414,580,410,830),
+('G1','CHC 200-4-2A',200,1519,1140,2659,645,550,1180),
+('G1','CHC 200-4-A',200,1519,1140,2659,645,550,1180),
+('G1','CHC 200-4',200,1519,1140,2659,645,550,1180)
+on conflict (generation_code,model_code) do update
+set family_no=excluded.family_no,
+    b1_mm=excluded.b1_mm,
+    b2_mm=excluded.b2_mm,
+    height_mm=excluded.height_mm,
+    d1_mm=excluded.d1_mm,
+    d2_mm=excluded.d2_mm,
+    weight_kg=excluded.weight_kg,
+    updated_at=now();
+
+-- ---------------------------------------------------------------------------
+-- D. G1 material-variant Length/Width profiles.
+--    These are intentionally independent of G2 dimension logic.
+-- ---------------------------------------------------------------------------
+create table if not exists public.ks_chc_g1_variant_dimensions_v41408 (
+  generation_code text        not null default 'G1',
+  variant_code    text        not null,
+  family_no       integer     not null,
+  length_mm       numeric,
+  width_mm        numeric,
+  source_group    text        not null default '',
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  primary key (generation_code,variant_code,family_no),
+  check (variant_code in ('CHC','CHCS','CHCN'))
+);
+
+insert into public.ks_chc_g1_variant_dimensions_v41408
+(generation_code,variant_code,family_no,length_mm,width_mm,source_group)
+values
+('G1','CHC',1,250,210,'CHC 1, CHC 2, CHC 3, CHC 4, CHC 5'),
+('G1','CHCS',1,250,210,'CHCS 1, CHCS 2, CHCS 3, CHCS 4, CHCS 5, CHCN 1, CHCN 2, CHCN 3, CHCN 4, CHCN 5'),
+('G1','CHCN',1,250,210,'CHCS 1, CHCS 2, CHCS 3, CHCS 4, CHCS 5, CHCN 1, CHCN 2, CHCN 3, CHCN 4, CHCN 5'),
+('G1','CHC',2,250,210,'CHC 1, CHC 2, CHC 3, CHC 4, CHC 5'),
+('G1','CHCS',2,250,210,'CHCS 1, CHCS 2, CHCS 3, CHCS 4, CHCS 5, CHCN 1, CHCN 2, CHCN 3, CHCN 4, CHCN 5'),
+('G1','CHCN',2,250,210,'CHCS 1, CHCS 2, CHCS 3, CHCS 4, CHCS 5, CHCN 1, CHCN 2, CHCN 3, CHCN 4, CHCN 5'),
+('G1','CHC',3,250,210,'CHC 1, CHC 2, CHC 3, CHC 4, CHC 5'),
+('G1','CHCS',3,250,210,'CHCS 1, CHCS 2, CHCS 3, CHCS 4, CHCS 5, CHCN 1, CHCN 2, CHCN 3, CHCN 4, CHCN 5'),
+('G1','CHCN',3,250,210,'CHCS 1, CHCS 2, CHCS 3, CHCS 4, CHCS 5, CHCN 1, CHCN 2, CHCN 3, CHCN 4, CHCN 5'),
+('G1','CHC',4,250,210,'CHC 1, CHC 2, CHC 3, CHC 4, CHC 5'),
+('G1','CHCS',4,250,210,'CHCS 1, CHCS 2, CHCS 3, CHCS 4, CHCS 5, CHCN 1, CHCN 2, CHCN 3, CHCN 4, CHCN 5'),
+('G1','CHCN',4,250,210,'CHCS 1, CHCS 2, CHCS 3, CHCS 4, CHCS 5, CHCN 1, CHCN 2, CHCN 3, CHCN 4, CHCN 5'),
+('G1','CHC',5,250,210,'CHC 1, CHC 2, CHC 3, CHC 4, CHC 5'),
+('G1','CHCS',5,250,210,'CHCS 1, CHCS 2, CHCS 3, CHCS 4, CHCS 5, CHCN 1, CHCN 2, CHCN 3, CHCN 4, CHCN 5'),
+('G1','CHCN',5,250,210,'CHCS 1, CHCS 2, CHCS 3, CHCS 4, CHCS 5, CHCN 1, CHCN 2, CHCN 3, CHCN 4, CHCN 5'),
+('G1','CHC',8,280,256,'CHC 8, CHC 10'),
+('G1','CHCS',8,280,248,'CHCS 8, CHCS 10, CHCN 8, CHCN 10'),
+('G1','CHCN',8,280,248,'CHCS 8, CHCS 10, CHCN 8, CHCN 10'),
+('G1','CHC',10,280,256,'CHC 8, CHC 10'),
+('G1','CHCS',10,280,248,'CHCS 8, CHCS 10, CHCN 8, CHCN 10'),
+('G1','CHCN',10,280,248,'CHCS 8, CHCS 10, CHCN 8, CHCN 10'),
+('G1','CHC',12,300,247,'CHC 12, CHCS 12, CHCN 12'),
+('G1','CHCS',12,300,247,'CHC 12, CHCS 12, CHCN 12'),
+('G1','CHCN',12,300,247,'CHC 12, CHCS 12, CHCN 12'),
+('G1','CHC',15,300,256,'CHC 15, CHC 16, CHC 20'),
+('G1','CHCS',15,300,248,'CHCS 15, CHCS 16, CHCS 20, CHCN 15, CHCN 16, CHCN 20'),
+('G1','CHCN',15,300,248,'CHCS 15, CHCS 16, CHCS 20, CHCN 15, CHCN 16, CHCN 20'),
+('G1','CHC',16,300,256,'CHC 15, CHC 16, CHC 20'),
+('G1','CHCS',16,300,248,'CHCS 15, CHCS 16, CHCS 20, CHCN 15, CHCN 16, CHCN 20'),
+('G1','CHCN',16,300,248,'CHCS 15, CHCS 16, CHCS 20, CHCN 15, CHCN 16, CHCN 20'),
+('G1','CHC',20,300,256,'CHC 15, CHC 16, CHC 20'),
+('G1','CHCS',20,300,248,'CHCS 15, CHCS 16, CHCS 20, CHCN 15, CHCN 16, CHCN 20'),
+('G1','CHCN',20,300,248,'CHCS 15, CHCS 16, CHCS 20, CHCN 15, CHCN 16, CHCN 20'),
+('G1','CHC',32,320,298,'CHC 32, CHCS 32, CHCN 32'),
+('G1','CHCS',32,320,298,'CHC 32, CHCS 32, CHCN 32'),
+('G1','CHCN',32,320,298,'CHC 32, CHCS 32, CHCN 32'),
+('G1','CHC',45,365,331,'CHC 45, CHCS 45, CHCN 45'),
+('G1','CHCS',45,365,331,'CHC 45, CHCS 45, CHCN 45'),
+('G1','CHCN',45,365,331,'CHC 45, CHCS 45, CHCN 45'),
+('G1','CHC',64,365,331,'CHC 64, CHCS 64, CHCN 64'),
+('G1','CHCS',64,365,331,'CHC 64, CHCS 64, CHCN 64'),
+('G1','CHCN',64,365,331,'CHC 64, CHCS 64, CHCN 64'),
+('G1','CHC',90,365,331,'CHC 90, CHCS 90, CHCN 90'),
+('G1','CHCS',90,365,331,'CHC 90, CHCS 90, CHCN 90'),
+('G1','CHCN',90,365,331,'CHC 90, CHCS 90, CHCN 90'),
+('G1','CHC',120,380,472,'CHC 120, CHCS 120, CHCN 120, CHC 150, CHCS 150, CHCN 150'),
+('G1','CHCS',120,380,472,'CHC 120, CHCS 120, CHCN 120, CHC 150, CHCS 150, CHCN 150'),
+('G1','CHCN',120,380,472,'CHC 120, CHCS 120, CHCN 120, CHC 150, CHCS 150, CHCN 150'),
+('G1','CHC',150,380,472,'CHC 120, CHCS 120, CHCN 120, CHC 150, CHCS 150, CHCN 150'),
+('G1','CHCS',150,380,472,'CHC 120, CHCS 120, CHCN 120, CHC 150, CHCS 150, CHCN 150'),
+('G1','CHCN',150,380,472,'CHC 120, CHCS 120, CHCN 120, CHC 150, CHCS 150, CHCN 150'),
+('G1','CHC',200,490,600,'CHC 200, CHCS 200, CHCN 200'),
+('G1','CHCS',200,490,600,'CHC 200, CHCS 200, CHCN 200'),
+('G1','CHCN',200,490,600,'CHC 200, CHCS 200, CHCN 200')
+on conflict (generation_code,variant_code,family_no) do update
+set length_mm=excluded.length_mm,
+    width_mm=excluded.width_mm,
+    source_group=excluded.source_group,
+    updated_at=now();
+
+-- ---------------------------------------------------------------------------
+-- E. Preserve supplied G1 price workbook as audit data only.
+--    Production resolver below uses mapped G2 prices.
+-- ---------------------------------------------------------------------------
+create table if not exists public.ks_chc_g1_price_source_v41408 (
+  generation_code text        not null default 'G1',
+  model_code      text        not null,
+  chc_myr         numeric,
+  chcs_myr        numeric,
+  chcn_myr        numeric,
+  source_row      integer,
+  inherit_g2      boolean     not null default true,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  primary key (generation_code,model_code)
+);
+
+insert into public.ks_chc_g1_price_source_v41408
+(generation_code,model_code,chc_myr,chcs_myr,chcn_myr,source_row,inherit_g2)
+values
+('G1','CHC 1-1',0,0,0,5,true),
+('G1','CHC 1-2',0,0,0,6,true),
+('G1','CHC 1-3',0,0,0,7,true),
+('G1','CHC 1-4',0,0,0,8,true),
+('G1','CHC 1-5',0,0,0,9,true),
+('G1','CHC 1-6',0,0,0,10,true),
+('G1','CHC 1-7',0,0,0,11,true),
+('G1','CHC 1-8',0,0,0,12,true),
+('G1','CHC 1-9',0,0,0,13,true),
+('G1','CHC 1-10',0,0,0,14,true),
+('G1','CHC 1-11',0,0,0,15,true),
+('G1','CHC 1-12',0,0,0,16,true),
+('G1','CHC 1-13',0,0,0,17,true),
+('G1','CHC 1-14',0,0,0,18,true),
+('G1','CHC 1-15',0,0,0,19,true),
+('G1','CHC 1-16',0,0,0,20,true),
+('G1','CHC 1-17',0,0,0,21,true),
+('G1','CHC 1-18',0,0,0,22,true),
+('G1','CHC 1-19',0,0,0,23,true),
+('G1','CHC 1-20',0,0,0,24,true),
+('G1','CHC 1-21',0,0,0,25,true),
+('G1','CHC 1-22',0,0,0,26,true),
+('G1','CHC 1-23',0,0,0,27,true),
+('G1','CHC 1-24',0,0,0,28,true),
+('G1','CHC 1-25',0,0,0,29,true),
+('G1','CHC 1-26',0,0,0,30,true),
+('G1','CHC 1-27',0,0,0,31,true),
+('G1','CHC 1-28',0,0,0,32,true),
+('G1','CHC 1-29',0,0,0,33,true),
+('G1','CHC 1-30',0,0,0,34,true),
+('G1','CHC 1-31',0,0,0,35,true),
+('G1','CHC 1-32',0,0,0,36,true),
+('G1','CHC 1-33',0,0,0,37,true),
+('G1','CHC 1-34',0,0,0,38,true),
+('G1','CHC 1-35',0,0,0,39,true),
+('G1','CHC 1-36',0,0,0,40,true),
+('G1','CHC 2-1',0,0,0,41,true),
+('G1','CHC 2-2',0,0,0,42,true),
+('G1','CHC 2-3',0,0,0,43,true),
+('G1','CHC 2-4',0,0,0,44,true),
+('G1','CHC 2-5',0,0,0,45,true),
+('G1','CHC 2-6',0,0,0,46,true),
+('G1','CHC 2-7',0,0,0,47,true),
+('G1','CHC 2-8',0,0,0,48,true),
+('G1','CHC 2-9',0,0,0,49,true),
+('G1','CHC 2-10',0,0,0,50,true),
+('G1','CHC 2-11',0,0,0,51,true),
+('G1','CHC 2-12',0,0,0,52,true),
+('G1','CHC 2-13',0,0,0,53,true),
+('G1','CHC 2-14',0,0,0,54,true),
+('G1','CHC 2-15',0,0,0,55,true),
+('G1','CHC 2-16',0,0,0,56,true),
+('G1','CHC 2-17',0,0,0,57,true),
+('G1','CHC 2-18',0,0,0,58,true),
+('G1','CHC 2-19',0,0,0,59,true),
+('G1','CHC 2-20',0,0,0,60,true),
+('G1','CHC 2-21',0,0,0,61,true),
+('G1','CHC 2-22',0,0,0,62,true),
+('G1','CHC 2-23',0,0,0,63,true),
+('G1','CHC 2-24',0,0,0,64,true),
+('G1','CHC 2-25',0,0,0,65,true),
+('G1','CHC 2-26',0,0,0,66,true),
+('G1','CHC 3-1',0,0,0,67,true),
+('G1','CHC 3-2',0,0,0,68,true),
+('G1','CHC 3-3',0,0,0,69,true),
+('G1','CHC 3-4',0,0,0,70,true),
+('G1','CHC 3-5',0,0,0,71,true),
+('G1','CHC 3-6',0,0,0,72,true),
+('G1','CHC 3-7',0,0,0,73,true),
+('G1','CHC 3-8',0,0,0,74,true),
+('G1','CHC 3-9',0,0,0,75,true),
+('G1','CHC 3-10',0,0,0,76,true),
+('G1','CHC 3-11',0,0,0,77,true),
+('G1','CHC 3-12',0,0,0,78,true),
+('G1','CHC 3-13',0,0,0,79,true),
+('G1','CHC 3-14',0,0,0,80,true),
+('G1','CHC 3-15',0,0,0,81,true),
+('G1','CHC 3-16',0,0,0,82,true),
+('G1','CHC 3-17',0,0,0,83,true),
+('G1','CHC 3-18',0,0,0,84,true),
+('G1','CHC 3-19',0,0,0,85,true),
+('G1','CHC 3-20',0,0,0,86,true),
+('G1','CHC 3-21',0,0,0,87,true),
+('G1','CHC 3-22',0,0,0,88,true),
+('G1','CHC 3-23',0,0,0,89,true),
+('G1','CHC 3-24',0,0,0,90,true),
+('G1','CHC 3-25',0,0,0,91,true),
+('G1','CHC 3-26',0,0,0,92,true),
+('G1','CHC 3-27',0,0,0,93,true),
+('G1','CHC 3-28',0,0,0,94,true),
+('G1','CHC 3-29',0,0,0,95,true),
+('G1','CHC 3-30',0,0,0,96,true),
+('G1','CHC 3-31',0,0,0,97,true),
+('G1','CHC 3-32',0,0,0,98,true),
+('G1','CHC 3-33',0,0,0,99,true),
+('G1','CHC 3-34',0,0,0,100,true),
+('G1','CHC 3-35',0,0,0,101,true),
+('G1','CHC 3-36',0,0,0,102,true),
+('G1','CHC 4-1',0,0,0,103,true),
+('G1','CHC 4-2',0,0,0,104,true),
+('G1','CHC 4-3',0,0,0,105,true),
+('G1','CHC 4-4',0,0,0,106,true),
+('G1','CHC 4-5',0,0,0,107,true),
+('G1','CHC 4-6',0,0,0,108,true),
+('G1','CHC 4-7',0,0,0,109,true),
+('G1','CHC 4-8',0,0,0,110,true),
+('G1','CHC 4-9',0,0,0,111,true),
+('G1','CHC 4-10',0,0,0,112,true),
+('G1','CHC 4-11',0,0,0,113,true),
+('G1','CHC 4-12',0,0,0,114,true),
+('G1','CHC 4-13',0,0,0,115,true),
+('G1','CHC 4-14',0,0,0,116,true),
+('G1','CHC 4-15',0,0,0,117,true),
+('G1','CHC 4-16',0,0,0,118,true),
+('G1','CHC 4-17',0,0,0,119,true),
+('G1','CHC 4-18',0,0,0,120,true),
+('G1','CHC 4-19',0,0,0,121,true),
+('G1','CHC 4-20',0,0,0,122,true),
+('G1','CHC 4-21',0,0,0,123,true),
+('G1','CHC 4-22',0,0,0,124,true),
+('G1','CHC 5-1',0,0,0,125,true),
+('G1','CHC 5-2',0,0,0,126,true),
+('G1','CHC 5-3',0,0,0,127,true),
+('G1','CHC 5-4',0,0,0,128,true),
+('G1','CHC 5-5',0,0,0,129,true),
+('G1','CHC 5-5 (60Hz)',0,0,0,130,true),
+('G1','CHC 5-6',0,0,0,131,true),
+('G1','CHC 5-7',0,0,0,132,true),
+('G1','CHC 5-8',0,0,0,133,true),
+('G1','CHC 5-9',0,0,0,134,true),
+('G1','CHC 5-10',0,0,0,135,true),
+('G1','CHC 5-11',0,0,0,136,true),
+('G1','CHC 5-12',0,0,0,137,true),
+('G1','CHC 5-13',0,0,0,138,true),
+('G1','CHC 5-14',0,0,0,139,true),
+('G1','CHC 5-15',0,0,0,140,true),
+('G1','CHC 5-16',0,0,0,141,true),
+('G1','CHC 5-17',0,0,0,142,true),
+('G1','CHC 5-18',0,0,0,143,true),
+('G1','CHC 5-19',0,0,0,144,true),
+('G1','CHC 5-20',0,0,0,145,true),
+('G1','CHC 5-21',0,0,0,146,true),
+('G1','CHC 5-22',0,0,0,147,true),
+('G1','CHC 5-23',0,0,0,148,true),
+('G1','CHC 5-24',0,0,0,149,true),
+('G1','CHC 5-25',0,0,0,150,true),
+('G1','CHC 5-26',0,0,0,151,true),
+('G1','CHC 5-27',0,0,0,152,true),
+('G1','CHC 5-28',0,0,0,153,true),
+('G1','CHC 5-29',0,0,0,154,true),
+('G1','CHC 5-30',0,0,0,155,true),
+('G1','CHC 5-31',0,0,0,156,true),
+('G1','CHC 5-32',0,0,0,157,true),
+('G1','CHC 5-33',0,0,0,158,true),
+('G1','CHC 5-34',0,0,0,159,true),
+('G1','CHC 5-35',0,0,0,160,true),
+('G1','CHC 5-36',0,0,0,161,true),
+('G1','CHC 8-1',0,0,0,162,true),
+('G1','CHC 8-2',0,0,0,163,true),
+('G1','CHC 8-3',0,0,0,164,true),
+('G1','CHC 8-4',0,0,0,165,true),
+('G1','CHC 8-5',0,0,0,166,true),
+('G1','CHC 8-6',0,0,0,167,true),
+('G1','CHC 8-7',0,0,0,168,true),
+('G1','CHC 8-8',0,0,0,169,true),
+('G1','CHC 8-9',0,0,0,170,true),
+('G1','CHC 8-10',0,0,0,171,true),
+('G1','CHC 8-11',0,0,0,172,true),
+('G1','CHC 8-12',0,0,0,173,true),
+('G1','CHC 8-13',0,0,0,174,true),
+('G1','CHC 8-14',0,0,0,175,true),
+('G1','CHC 8-15',0,0,0,176,true),
+('G1','CHC 8-16',0,0,0,177,true),
+('G1','CHC 8-17',0,0,0,178,true),
+('G1','CHC 8-18',0,0,0,179,true),
+('G1','CHC 8-19',0,0,0,180,true),
+('G1','CHC 8-20',0,0,0,181,true),
+('G1','CHC 8-21',0,0,0,182,true),
+('G1','CHC 8-22',0,0,0,183,true),
+('G1','CHC 12-2',0,0,0,184,true),
+('G1','CHC 12-3',0,0,0,185,true),
+('G1','CHC 12-4',0,0,0,186,true),
+('G1','CHC 12-5',0,0,0,187,true),
+('G1','CHC 12-6',0,0,0,188,true),
+('G1','CHC 12-7',0,0,0,189,true),
+('G1','CHC 12-8',0,0,0,190,true),
+('G1','CHC 12-9',0,0,0,191,true),
+('G1','CHC 12-10',0,0,0,192,true),
+('G1','CHC 12-11',0,0,0,193,true),
+('G1','CHC 12-12',0,0,0,194,true),
+('G1','CHC 12-13',0,0,0,195,true),
+('G1','CHC 12-14',0,0,0,196,true),
+('G1','CHC 12-15',0,0,0,197,true),
+('G1','CHC 12-16',0,0,0,198,true),
+('G1','CHC 12-17',0,0,0,199,true),
+('G1','CHC 12-18',0,0,0,200,true),
+('G1','CHC 16-1',0,0,0,201,true),
+('G1','CHC 16-2',0,0,0,202,true),
+('G1','CHC 16-3',0,0,0,203,true),
+('G1','CHC 16-4',0,0,0,204,true),
+('G1','CHC 16-5',0,0,0,205,true),
+('G1','CHC 16-6',0,0,0,206,true),
+('G1','CHC 16-7',0,0,0,207,true),
+('G1','CHC 16-8',0,0,0,208,true),
+('G1','CHC 16-9',0,0,0,209,true),
+('G1','CHC 16-10',0,0,0,210,true),
+('G1','CHC 16-11',0,0,0,211,true),
+('G1','CHC 16-12',0,0,0,212,true),
+('G1','CHC 16-13',0,0,0,213,true),
+('G1','CHC 16-14',0,0,0,214,true),
+('G1','CHC 16-15',0,0,0,215,true),
+('G1','CHC 16-16',0,0,0,216,true),
+('G1','CHC 16-17',0,0,0,217,true),
+('G1','CHC 20-1',0,0,0,218,true),
+('G1','CHC 20-2',0,0,0,219,true),
+('G1','CHC 20-3',0,0,0,220,true),
+('G1','CHC 20-4',0,0,0,221,true),
+('G1','CHC 20-5',0,0,0,222,true),
+('G1','CHC 20-6',0,0,0,223,true),
+('G1','CHC 20-7',0,0,0,224,true),
+('G1','CHC 20-8',0,0,0,225,true),
+('G1','CHC 20-9',0,0,0,226,true),
+('G1','CHC 20-10',0,0,0,227,true),
+('G1','CHC 20-11',0,0,0,228,true),
+('G1','CHC 20-12',0,0,0,229,true),
+('G1','CHC 20-13',0,0,0,230,true),
+('G1','CHC 20-14',0,0,0,231,true),
+('G1','CHC 20-15',0,0,0,232,true),
+('G1','CHC 20-16',0,0,0,233,true),
+('G1','CHC 20-17',0,0,0,234,true),
+('G1','CHC 32-1-1',0,0,0,235,true),
+('G1','CHC 32-1',0,0,0,236,true),
+('G1','CHC 32-2-2',0,0,0,237,true),
+('G1','CHC 32-2',0,0,0,238,true),
+('G1','CHC 32-3-2',0,0,0,239,true),
+('G1','CHC 32-3',0,0,0,240,true),
+('G1','CHC 32-4-2',0,0,0,241,true),
+('G1','CHC 32-4',0,0,0,242,true),
+('G1','CHC 32-5-2',0,0,0,243,true),
+('G1','CHC 32-5',0,0,0,244,true),
+('G1','CHC 32-6-2',0,0,0,245,true),
+('G1','CHC 32-6',0,0,0,246,true),
+('G1','CHC 32-7-2',0,0,0,247,true),
+('G1','CHC 32-7',0,0,0,248,true),
+('G1','CHC 32-8-2',0,0,0,249,true),
+('G1','CHC 32-8',0,0,0,250,true),
+('G1','CHC 32-9-2',0,0,0,251,true),
+('G1','CHC 32-9',0,0,0,252,true),
+('G1','CHC 32-10-2',0,0,0,253,true),
+('G1','CHC 32-10',0,0,0,254,true),
+('G1','CHC 32-11-2',0,0,0,255,true),
+('G1','CHC 32-11',0,0,0,256,true),
+('G1','CHC 32-12-2',0,0,0,257,true),
+('G1','CHC 32-12',0,0,0,258,true),
+('G1','CHC 32-13-2',0,0,0,259,true),
+('G1','CHC 32-13',0,0,0,260,true),
+('G1','CHC 32-14-2',0,0,0,261,true),
+('G1','CHC 32-14',0,0,0,262,true),
+('G1','CHC 32-15-2',0,0,0,263,true),
+('G1','CHC 32-15',0,0,0,264,true),
+('G1','CHC 32-16-2',0,0,0,265,true),
+('G1','CHC 32-16',0,0,0,266,true),
+('G1','CHC 45-1-1',0,0,0,267,true),
+('G1','CHC 45-1',0,0,0,268,true),
+('G1','CHC 45-2-2',0,0,0,269,true),
+('G1','CHC 45-2',0,0,0,270,true),
+('G1','CHC 45-3-2',0,0,0,271,true),
+('G1','CHC 45-3',0,0,0,272,true),
+('G1','CHC 45-4-2',0,0,0,273,true),
+('G1','CHC 45-4',0,0,0,274,true),
+('G1','CHC 45-5-2',0,0,0,275,true),
+('G1','CHC 45-5',0,0,0,276,true),
+('G1','CHC 45-6-2',0,0,0,277,true),
+('G1','CHC 45-6',0,0,0,278,true),
+('G1','CHC 45-7-2',0,0,0,279,true),
+('G1','CHC 45-7',0,0,0,280,true),
+('G1','CHC 45-8-2',0,0,0,281,true),
+('G1','CHC 45-8',0,0,0,282,true),
+('G1','CHC 45-9-2',0,0,0,283,true),
+('G1','CHC 45-9',0,0,0,284,true),
+('G1','CHC 45-10-2',0,0,0,285,true),
+('G1','CHC 45-10',0,0,0,286,true),
+('G1','CHC 45-11-2',0,0,0,287,true),
+('G1','CHC 45-11',0,0,0,288,true),
+('G1','CHC 45-12-2',0,0,0,289,true),
+('G1','CHC 45-12',0,0,0,290,true),
+('G1','CHC 45-13-2',0,0,0,291,true),
+('G1','CHC 64-1-1',0,0,0,292,true),
+('G1','CHC 64-1',0,0,0,293,true),
+('G1','CHC 64-2-2',0,0,0,294,true),
+('G1','CHC 64-2-1',0,0,0,295,true),
+('G1','CHC 64-2',0,0,0,296,true),
+('G1','CHC 64-3-2',0,0,0,297,true),
+('G1','CHC 64-3-1',0,0,0,298,true),
+('G1','CHC 64-3',0,0,0,299,true),
+('G1','CHC 64-4-2',0,0,0,300,true),
+('G1','CHC 64-4-1',0,0,0,301,true),
+('G1','CHC 64-4',0,0,0,302,true),
+('G1','CHC 64-5-2',0,0,0,303,true),
+('G1','CHC 64-5-1',0,0,0,304,true),
+('G1','CHC 64-5',0,0,0,305,true),
+('G1','CHC 64-6-2',0,0,0,306,true),
+('G1','CHC 64-6-1',0,0,0,307,true),
+('G1','CHC 64-6',0,0,0,308,true),
+('G1','CHC 64-7-2',0,0,0,309,true),
+('G1','CHC 64-7-1',0,0,0,310,true),
+('G1','CHC 64-7',0,0,0,311,true),
+('G1','CHC 64-8-2',0,0,0,312,true),
+('G1','CHC 64-8-1',0,0,0,313,true),
+('G1','CHC 90-1-1',0,0,0,314,true),
+('G1','CHC 90-1',0,0,0,315,true),
+('G1','CHC 90-2-2',0,0,0,316,true),
+('G1','CHC 90-2',0,0,0,317,true),
+('G1','CHC 90-3-2',0,0,0,318,true),
+('G1','CHC 90-3',0,0,0,319,true),
+('G1','CHC 90-4-2',0,0,0,320,true),
+('G1','CHC 90-4',0,0,0,321,true),
+('G1','CHC 90-5-2',0,0,0,322,true),
+('G1','CHC 90-5',0,0,0,323,true),
+('G1','CHC 90-6-2',0,0,0,324,true),
+('G1','CHC 90-6',0,0,0,325,true),
+('G1','CHC 120-1',0,0,0,326,true),
+('G1','CHC 120-2-2',0,0,0,327,true),
+('G1','CHC 120-2-1',0,0,0,328,true),
+('G1','CHC 120-2',0,0,0,329,true),
+('G1','CHC 120-3-2',0,0,0,330,true),
+('G1','CHC 120-3-1',0,0,0,331,true),
+('G1','CHC 120-3',0,0,0,332,true),
+('G1','CHC 120-4-2',0,0,0,333,true),
+('G1','CHC 120-4-1',0,0,0,334,true),
+('G1','CHC 120-4',0,0,0,335,true),
+('G1','CHC 120-5-2',0,0,0,336,true),
+('G1','CHC 120-5-1',0,0,0,337,true),
+('G1','CHC 120-5',0,0,0,338,true),
+('G1','CHC 120-6-2',0,0,0,339,true),
+('G1','CHC 120-6-1',0,0,0,340,true),
+('G1','CHC 120-6',0,0,0,341,true),
+('G1','CHC 120-7-2',0,0,0,342,true),
+('G1','CHC 120-7-1',0,0,0,343,true),
+('G1','CHC 120-7',0,0,0,344,true),
+('G1','CHC 150-1-1',0,0,0,345,true),
+('G1','CHC 150-1',0,0,0,346,true),
+('G1','CHC 150-2-2',0,0,0,347,true),
+('G1','CHC 150-2-1',0,0,0,348,true),
+('G1','CHC 150-2',0,0,0,349,true),
+('G1','CHC 150-3-2',0,0,0,350,true),
+('G1','CHC 150-3-1',0,0,0,351,true),
+('G1','CHC 150-3',0,0,0,352,true),
+('G1','CHC 150-4-2',0,0,0,353,true),
+('G1','CHC 150-4-1',0,0,0,354,true),
+('G1','CHC 150-4',0,0,0,355,true),
+('G1','CHC 150-5-2',0,0,0,356,true),
+('G1','CHC 150-5-1',0,0,0,357,true),
+('G1','CHC 150-5',0,0,0,358,true),
+('G1','CHC 150-6-2',0,0,0,359,true),
+('G1','CHC 150-6-1',0,0,0,360,true),
+('G1','CHC 150-6',0,0,0,361,true),
+('G1','CHC 200-1-B',0,0,0,362,true),
+('G1','CHC 200-1-A',0,0,0,363,true),
+('G1','CHC 200-1',0,0,0,364,true),
+('G1','CHC 200-2-2B',0,0,0,365,true),
+('G1','CHC 200-2-2A',0,0,0,366,true),
+('G1','CHC 200-2-A',0,0,0,367,true),
+('G1','CHC 200-2',0,0,0,368,true),
+('G1','CHC 200-3-2B',0,0,0,369,true),
+('G1','CHC 200-3-A-B',0,0,0,370,true),
+('G1','CHC 200-3-2A',0,0,0,371,true),
+('G1','CHC 200-3-B',0,0,0,372,true),
+('G1','CHC 200-3-A',0,0,0,373,true),
+('G1','CHC 200-3',0,0,0,374,true),
+('G1','CHC 200-4-2B',0,0,0,375,true),
+('G1','CHC 200-4-2A',0,0,0,376,true),
+('G1','CHC 200-4-A',0,0,0,377,true),
+('G1','CHC 200-4',0,0,0,378,true)
+on conflict (generation_code,model_code) do update
+set chc_myr=excluded.chc_myr,
+    chcs_myr=excluded.chcs_myr,
+    chcn_myr=excluded.chcn_myr,
+    source_row=excluded.source_row,
+    inherit_g2=true,
+    updated_at=now();
+
+create table if not exists public.ks_chc_g1_mech_seal_source_v41408 (
+  generation_code text        not null default 'G1',
+  seal_label      text        not null,
+  pump_range      text        not null,
+  amount_myr      numeric,
+  inherit_g2      boolean     not null default true,
+  created_at      timestamptz not null default now(),
+  primary key (generation_code,seal_label,pump_range)
+);
+
+insert into public.ks_chc_g1_mech_seal_source_v41408
+(generation_code,seal_label,pump_range,amount_myr,inherit_g2)
+values
+('G1','Car / Sic','CHC 1 to CHC 5',0,true),
+('G1','Car / Sic','CHC 8 to CHC 20',0,true),
+('G1','Car / Sic','CHC 32 to CHC 90',0,true),
+('G1','Car / Sic','CHC 120to 200',0,true),
+('G1','Sic / Sic','CHC 1 to CHC 5',250,true),
+('G1','Sic / Sic','CHC 8 to CHC 20',300,true),
+('G1','Sic / Sic','CHC 32 to CHC 90',500,true),
+('G1','Sic / Sic','CHC 120to 200',800,true),
+('G1','TuC / Tic','CHC 1 to CHC 5',350,true),
+('G1','TuC / Tic','CHC 8 to CHC 20',400,true),
+('G1','TuC / Tic','CHC 32 to CHC 90',600,true),
+('G1','TuC / Tic','CHC 120to 200',900,true)
+on conflict (generation_code,seal_label,pump_range) do update
+set amount_myr=excluded.amount_myr,
+    inherit_g2=true;
+
+-- ---------------------------------------------------------------------------
+-- F. Product catalogue: G2 unchanged + virtual/read-only G1 using mapped G2 price.
+-- ---------------------------------------------------------------------------
+create or replace view public.ks_chc_product_catalog_v41408 as
+select
+  'G2'::text as generation_code,
+  trim(p.model)::text as model_code,
+  ('CHC|G2|'||upper(trim(p.model)))::text as identity_key,
+  trim(p.model)::text as technical_source_model,
+  trim(p.model)::text as price_source_model,
+  p.chc_usd,
+  p.chcs_usd,
+  p.chcn_usd,
+  true::boolean as product_enabled,
+  true::boolean as selection_enabled,
+  true::boolean as app_editable,
+  null::integer as g1_family_no
+from public.ks_products_chc p
+
+union all
+
+select
+  'G1'::text as generation_code,
+  g.model_code,
+  ('CHC|G1|'||upper(g.model_code))::text as identity_key,
+  g.equivalent_model_code::text as technical_source_model,
+  g.equivalent_model_code::text as price_source_model,
+  p.chc_usd,
+  p.chcs_usd,
+  p.chcn_usd,
+  g.product_enabled,
+  false::boolean as selection_enabled,
+  false::boolean as app_editable,
+  g.family_no as g1_family_no
+from public.ks_chc_generation_models_v41408 g
+left join public.ks_products_chc p
+  on lower(trim(p.model))=lower(trim(g.equivalent_model_code))
+where g.generation_code='G1';
+
+-- ---------------------------------------------------------------------------
+-- G. Read-only Product RPC. Allows Product to show G1 and/or G2.
+--    This RPC is NOT the hydraulic Selection RPC.
+-- ---------------------------------------------------------------------------
+create or replace function public.keysuite_v41408_chc_product_models(
+  p_generations text[] default null,
+  p_model text default null
+)
+returns table(
+  generation_code text,
+  model_code text,
+  identity_key text,
+  technical_source_model text,
+  price_source_model text,
+  chc_usd numeric,
+  chcs_usd numeric,
+  chcn_usd numeric,
+  product_enabled boolean,
+  selection_enabled boolean,
+  app_editable boolean
+)
+language sql
+stable
+security definer
+set search_path=public
+as $$
+  select
+    c.generation_code,c.model_code,c.identity_key,
+    c.technical_source_model,c.price_source_model,
+    c.chc_usd,c.chcs_usd,c.chcn_usd,
+    c.product_enabled,c.selection_enabled,c.app_editable
+  from public.ks_chc_product_catalog_v41408 c
+  where c.product_enabled=true
+    and (
+      p_generations is null
+      or cardinality(p_generations)=0
+      or c.generation_code = any(array(
+        select upper(trim(x)) from unnest(p_generations) x
+      ))
+    )
+    and (coalesce(trim(p_model),'')='' or lower(trim(c.model_code))=lower(trim(p_model)))
+  order by case c.generation_code when 'G1' then 1 else 2 end,c.model_code
+$$;
+
+-- ---------------------------------------------------------------------------
+-- H. G1 dimension resolver.
+--    Variant accepts CHC / CHCS / CHCN. G2 stays on existing dimension code.
+-- ---------------------------------------------------------------------------
+create or replace function public.keysuite_v41408_chc_g1_dimension(
+  p_model text,
+  p_variant text default 'CHC'
+)
+returns table(
+  generation_code text,
+  model_code text,
+  variant_code text,
+  b1_mm numeric,
+  b2_mm numeric,
+  height_mm numeric,
+  d1_mm numeric,
+  d2_mm numeric,
+  length_mm numeric,
+  width_mm numeric,
+  weight_kg numeric
+)
+language sql
+stable
+security definer
+set search_path=public
+as $$
+  select
+    'G1'::text,
+    d.model_code,
+    upper(trim(coalesce(p_variant,'CHC')))::text,
+    d.b1_mm,d.b2_mm,d.height_mm,d.d1_mm,d.d2_mm,
+    v.length_mm,v.width_mm,d.weight_kg
+  from public.ks_chc_g1_model_dimensions_v41408 d
+  join public.ks_chc_g1_variant_dimensions_v41408 v
+    on v.generation_code='G1'
+   and v.family_no=d.family_no
+   and v.variant_code=upper(trim(coalesce(p_variant,'CHC')))
+  where d.generation_code='G1'
+    and lower(trim(d.model_code))=lower(trim(p_model))
+$$;
+
+-- ---------------------------------------------------------------------------
+-- I. Full direct-model resolver for Product/quotation integration.
+--    Non-dimension behaviour maps to G2; dimension comes from G1 tables.
+-- ---------------------------------------------------------------------------
+create or replace function public.keysuite_v41408_chc_resolve(
+  p_generation text,
+  p_model text,
+  p_variant text default 'CHC'
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path=public
+as $$
+declare
+  v_gen text:=upper(trim(coalesce(p_generation,'G2')));
+  v_variant text:=upper(trim(coalesce(p_variant,'CHC')));
+  v_model text:=trim(coalesce(p_model,''));
+  v_row record;
+  v_dim record;
+begin
+  if v_variant not in ('CHC','CHCS','CHCN') then
+    raise exception 'Unsupported CHC material variant: %',v_variant;
+  end if;
+
+  if v_gen='G2' then
+    select * into v_row
+    from public.ks_chc_product_catalog_v41408
+    where generation_code='G2' and lower(trim(model_code))=lower(v_model)
+    limit 1;
+
+    if not found then raise exception 'G2 CHC model not found: %',v_model; end if;
+
+    return jsonb_build_object(
+      'generation_code','G2',
+      'model_code',v_row.model_code,
+      'variant_code',v_variant,
+      'display_model',regexp_replace(v_row.model_code,'^CHC',v_variant),
+      'identity_key',v_row.identity_key,
+      'technical_source_generation','G2',
+      'technical_source_model',v_row.technical_source_model,
+      'price_source_generation','G2',
+      'price_source_model',v_row.price_source_model,
+      'price_source_value',
+        case v_variant when 'CHC' then v_row.chc_usd when 'CHCS' then v_row.chcs_usd else v_row.chcn_usd end,
+      'dimension_source','EXISTING_G2',
+      'dimension',null,
+      'product_enabled',true,
+      'selection_enabled',true,
+      'app_editable',true
+    );
+  elsif v_gen='G1' then
+    select * into v_row
+    from public.ks_chc_product_catalog_v41408
+    where generation_code='G1' and lower(trim(model_code))=lower(v_model)
+    limit 1;
+
+    if not found then raise exception 'G1 CHC model not found: %',v_model; end if;
+
+    select * into v_dim
+    from public.keysuite_v41408_chc_g1_dimension(v_row.model_code,v_variant)
+    limit 1;
+
+    return jsonb_build_object(
+      'generation_code','G1',
+      'model_code',v_row.model_code,
+      'variant_code',v_variant,
+      'display_model',regexp_replace(v_row.model_code,'^CHC',v_variant),
+      'identity_key',v_row.identity_key,
+      'technical_source_generation','G2',
+      'technical_source_model',v_row.technical_source_model,
+      'price_source_generation','G2',
+      'price_source_model',v_row.price_source_model,
+      'price_source_value',
+        case v_variant when 'CHC' then v_row.chc_usd when 'CHCS' then v_row.chcs_usd else v_row.chcn_usd end,
+      'dimension_source','G1',
+      'dimension',case when v_dim.model_code is null then null else jsonb_build_object(
+        'B1',v_dim.b1_mm,'B2',v_dim.b2_mm,'Height',v_dim.height_mm,
+        'D1',v_dim.d1_mm,'D2',v_dim.d2_mm,
+        'Length',v_dim.length_mm,'Width',v_dim.width_mm,'Weight',v_dim.weight_kg
+      ) end,
+      'product_enabled',true,
+      'selection_enabled',false,
+      'app_editable',false
+    );
+  else
+    raise exception 'Unsupported CHC generation: %',v_gen;
+  end if;
+end
+$$;
+
+-- ---------------------------------------------------------------------------
+-- J. Selector generation list: G1 stays hidden from hydraulic Selection.
+--     Same function name/signature as V4.14.07 so existing frontend stays compatible.
+-- ---------------------------------------------------------------------------
+create or replace function public.keysuite_v41407_list_pump_generations(p_family text default 'CHC')
+returns table(
+  family_code text,
+  generation_code text,
+  display_name text,
+  sort_order integer,
+  is_current boolean,
+  data_ready boolean
+)
+language sql
+stable
+security definer
+set search_path=public
+as $$
+  select
+    g.family_code,g.generation_code,g.display_name,g.sort_order,g.is_current,g.data_ready
+  from public.ks_pump_generations_v41407 g
+  where g.family_code=upper(trim(coalesce(p_family,'')))
+    and g.is_active=true
+    and g.data_ready=true
+    and coalesce(g.selection_enabled,true)=true
+  order by g.sort_order,g.generation_code
+$$;
+
+-- Product-generation list is separate and DOES include G1.
+create or replace function public.keysuite_v41408_list_chc_product_generations()
+returns table(
+  generation_code text,
+  display_name text,
+  sort_order integer,
+  is_current boolean,
+  app_editable boolean
+)
+language sql
+stable
+security definer
+set search_path=public
+as $$
+  select g.generation_code,g.display_name,g.sort_order,g.is_current,g.app_editable
+  from public.ks_pump_generations_v41407 g
+  where g.family_code='CHC'
+    and g.is_active=true
+    and g.data_ready=true
+    and coalesce(g.product_enabled,true)=true
+  order by g.sort_order,g.generation_code
+$$;
+
+-- ---------------------------------------------------------------------------
+-- K. G1 is read-only from the app.
+-- ---------------------------------------------------------------------------
+alter table public.ks_chc_generation_models_v41408 enable row level security;
+alter table public.ks_chc_g1_model_dimensions_v41408 enable row level security;
+alter table public.ks_chc_g1_variant_dimensions_v41408 enable row level security;
+alter table public.ks_chc_g1_price_source_v41408 enable row level security;
+alter table public.ks_chc_g1_mech_seal_source_v41408 enable row level security;
+
+revoke all on public.ks_chc_generation_models_v41408 from anon,authenticated;
+revoke all on public.ks_chc_g1_model_dimensions_v41408 from anon,authenticated;
+revoke all on public.ks_chc_g1_variant_dimensions_v41408 from anon,authenticated;
+revoke all on public.ks_chc_g1_price_source_v41408 from anon,authenticated;
+revoke all on public.ks_chc_g1_mech_seal_source_v41408 from anon,authenticated;
+
+grant select on public.ks_chc_generation_models_v41408 to authenticated;
+grant select on public.ks_chc_g1_model_dimensions_v41408 to authenticated;
+grant select on public.ks_chc_g1_variant_dimensions_v41408 to authenticated;
+grant select on public.ks_chc_g1_price_source_v41408 to authenticated;
+grant select on public.ks_chc_g1_mech_seal_source_v41408 to authenticated;
+grant select on public.ks_chc_product_catalog_v41408 to authenticated;
+
+drop policy if exists ks_chc_generation_models_v41408_read on public.ks_chc_generation_models_v41408;
+create policy ks_chc_generation_models_v41408_read on public.ks_chc_generation_models_v41408
+for select to authenticated using (true);
+
+drop policy if exists ks_chc_g1_model_dimensions_v41408_read on public.ks_chc_g1_model_dimensions_v41408;
+create policy ks_chc_g1_model_dimensions_v41408_read on public.ks_chc_g1_model_dimensions_v41408
+for select to authenticated using (true);
+
+drop policy if exists ks_chc_g1_variant_dimensions_v41408_read on public.ks_chc_g1_variant_dimensions_v41408;
+create policy ks_chc_g1_variant_dimensions_v41408_read on public.ks_chc_g1_variant_dimensions_v41408
+for select to authenticated using (true);
+
+drop policy if exists ks_chc_g1_price_source_v41408_read on public.ks_chc_g1_price_source_v41408;
+create policy ks_chc_g1_price_source_v41408_read on public.ks_chc_g1_price_source_v41408
+for select to authenticated using (true);
+
+drop policy if exists ks_chc_g1_mech_seal_source_v41408_read on public.ks_chc_g1_mech_seal_source_v41408;
+create policy ks_chc_g1_mech_seal_source_v41408_read on public.ks_chc_g1_mech_seal_source_v41408
+for select to authenticated using (true);
+
+revoke all on function public.keysuite_v41408_chc_product_models(text[],text) from public,anon;
+revoke all on function public.keysuite_v41408_chc_g1_dimension(text,text) from public,anon;
+revoke all on function public.keysuite_v41408_chc_resolve(text,text,text) from public,anon;
+revoke all on function public.keysuite_v41408_list_chc_product_generations() from public,anon;
+
+grant execute on function public.keysuite_v41408_chc_product_models(text[],text) to authenticated;
+grant execute on function public.keysuite_v41408_chc_g1_dimension(text,text) to authenticated;
+grant execute on function public.keysuite_v41408_chc_resolve(text,text,text) to authenticated;
+grant execute on function public.keysuite_v41408_list_chc_product_generations() to authenticated;
+
+notify pgrst,'reload schema';
+
+commit;
